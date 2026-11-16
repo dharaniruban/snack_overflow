@@ -24,7 +24,7 @@ function getInitialTheme(): Theme {
   } catch {
     // Ignore storage access errors
   }
-  return 'light';
+  return 'dark';
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {

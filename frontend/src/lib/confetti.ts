@@ -20,7 +20,7 @@ export function triggerVoteConfetti(element?: HTMLElement | null): void {
     ticks: 110,
     scalar: 0.85,
     origin,
-    colors: ['#059669', '#10b981', '#f59e0b', '#fbbf24', '#38bdf8'],
+    colors: ['#facc15', '#eab308', '#fde047', '#18181b', '#ffffff'],
     disableForReducedMotion: true,
   });
 }

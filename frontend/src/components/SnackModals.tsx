@@ -1,4 +1,5 @@
 import { X } from 'lucide-react';
+import { motion } from 'motion/react';
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { SNACK_CATEGORIES } from '@/src/lib/snackDisplay';
 import type { CreateSnackInput, Snack, SnackCategory, UpdateSnackInput } from '@/src/types/api';
@@ -23,29 +24,37 @@ function ModalShell({
   }, [onClose]);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs"
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.16 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/70 p-4 backdrop-blur-xs"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-heading"
     >
-      <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-4 dark:border-slate-800">
-          <h2 id="modal-heading" className="text-lg font-semibold text-slate-900 dark:text-slate-50">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+        className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-zinc-800 dark:bg-zinc-900"
+      >
+        <div className="flex items-center justify-between gap-4 border-b border-zinc-100 pb-4 dark:border-zinc-800">
+          <h2 id="modal-heading" className="font-display text-lg font-bold text-zinc-950 dark:text-white">
             {title}
           </h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close dialog"
-            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+            className="rounded-xl p-1.5 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
         <div className="mt-5">{children}</div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -127,7 +136,7 @@ export function SnackFormModal({
         <div>
           <label
             htmlFor="snack-name"
-            className="block text-sm font-medium text-slate-700 dark:text-slate-200"
+            className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300"
           >
             Snack name
           </label>
@@ -139,14 +148,14 @@ export function SnackFormModal({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Sea Salt Kettle Chips"
-            className="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            className="mt-1.5 block min-h-[42px] w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 text-sm text-zinc-950 placeholder:text-zinc-400 focus:border-yellow-400 focus:bg-white focus:ring-2 focus:ring-yellow-400/20 focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
           />
         </div>
 
         <div>
           <label
             htmlFor="snack-category"
-            className="block text-sm font-medium text-slate-700 dark:text-slate-200"
+            className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300"
           >
             Category
           </label>
@@ -154,7 +163,7 @@ export function SnackFormModal({
             id="snack-category"
             value={category}
             onChange={(e) => setCategory(e.target.value as SnackCategory)}
-            className="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:border-emerald-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            className="mt-1.5 block min-h-[42px] w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 text-sm text-zinc-950 focus:border-yellow-400 focus:bg-white focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
           >
             {SNACK_CATEGORIES.map((cat) => (
               <option key={cat.value} value={cat.value}>
@@ -168,7 +177,7 @@ export function SnackFormModal({
           <div>
             <label
               htmlFor="snack-quantity"
-              className="block text-sm font-medium text-slate-700 dark:text-slate-200"
+              className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300"
             >
               Quantity
             </label>
@@ -180,13 +189,13 @@ export function SnackFormModal({
               required
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
-              className="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 font-mono text-sm tabular-nums text-slate-900 focus:border-emerald-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              className="mt-1.5 block min-h-[42px] w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 font-mono text-sm tabular-nums text-zinc-950 focus:border-yellow-400 focus:bg-white focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
             />
           </div>
           <div>
             <label
               htmlFor="snack-threshold"
-              className="block text-sm font-medium text-slate-700 dark:text-slate-200"
+              className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300"
             >
               Low-stock threshold
             </label>
@@ -198,7 +207,7 @@ export function SnackFormModal({
               required
               value={lowStockThreshold}
               onChange={(e) => setLowStockThreshold(e.target.value)}
-              className="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 font-mono text-sm tabular-nums text-slate-900 focus:border-emerald-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              className="mt-1.5 block min-h-[42px] w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 font-mono text-sm tabular-nums text-zinc-950 focus:border-yellow-400 focus:bg-white focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
             />
           </div>
         </div>
@@ -212,14 +221,14 @@ export function SnackFormModal({
             type="button"
             disabled={isPending}
             onClick={onClose}
-            className="min-h-[40px] rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+            className="min-h-[40px] rounded-xl border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={isPending}
-            className="min-h-[40px] rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-60 dark:hover:bg-emerald-500"
+            className="min-h-[40px] rounded-xl bg-yellow-400 px-4 py-2 text-sm font-bold text-zinc-950 transition-all hover:bg-yellow-300 active:scale-[0.98] disabled:opacity-60"
           >
             {isPending ? 'Saving...' : mode === 'create' ? 'Add snack' : 'Save changes'}
           </button>
@@ -259,9 +268,9 @@ export function RestockModal({ snack, isPending, onClose, onSubmit }: RestockMod
   return (
     <ModalShell title={`Restock ${snack.name}`} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <p className="text-sm text-slate-600 dark:text-slate-300">
+        <p className="text-sm text-zinc-600 dark:text-zinc-300">
           Current stock:{' '}
-          <span className="font-mono font-semibold tabular-nums text-slate-900 dark:text-slate-100">
+          <span className="font-mono font-bold tabular-nums text-zinc-950 dark:text-white">
             {snack.quantity}
           </span>
         </p>
@@ -272,10 +281,10 @@ export function RestockModal({ snack, isPending, onClose, onSubmit }: RestockMod
               key={preset}
               type="button"
               onClick={() => setAmount(String(preset))}
-              className={`min-h-[36px] flex-1 rounded-lg border px-2 py-1.5 font-mono text-xs font-semibold tabular-nums transition-colors ${
+              className={`min-h-[38px] flex-1 rounded-xl border px-2 py-1.5 font-mono text-xs font-bold tabular-nums transition-all active:scale-[0.97] ${
                 amount === String(preset)
-                  ? 'border-emerald-600 bg-emerald-50 text-emerald-800 dark:border-emerald-500 dark:bg-emerald-950/60 dark:text-emerald-300'
-                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'
+                  ? 'border-yellow-400 bg-yellow-400 text-zinc-950'
+                  : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700'
               }`}
             >
               +{preset}
@@ -286,7 +295,7 @@ export function RestockModal({ snack, isPending, onClose, onSubmit }: RestockMod
         <div>
           <label
             htmlFor="restock-amount"
-            className="block text-sm font-medium text-slate-700 dark:text-slate-200"
+            className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300"
           >
             Units to add
           </label>
@@ -299,7 +308,7 @@ export function RestockModal({ snack, isPending, onClose, onSubmit }: RestockMod
             autoFocus
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 font-mono text-sm tabular-nums text-slate-900 focus:border-emerald-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            className="mt-1.5 block min-h-[42px] w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 font-mono text-sm tabular-nums text-zinc-950 focus:border-yellow-400 focus:bg-white focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
           />
         </div>
 
@@ -312,14 +321,14 @@ export function RestockModal({ snack, isPending, onClose, onSubmit }: RestockMod
             type="button"
             disabled={isPending}
             onClick={onClose}
-            className="min-h-[40px] rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+            className="min-h-[40px] rounded-xl border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={isPending}
-            className="min-h-[40px] rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 dark:hover:bg-emerald-500"
+            className="min-h-[40px] rounded-xl bg-yellow-400 px-4 py-2 text-sm font-bold text-zinc-950 transition-all hover:bg-yellow-300 active:scale-[0.98] disabled:opacity-60"
           >
             {isPending ? 'Restocking...' : 'Confirm restock'}
           </button>
@@ -353,10 +362,10 @@ export function DeleteSnackModal({
 
   return (
     <ModalShell title="Remove snack" onClose={onClose}>
-      <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+      <p className="text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">
         Are you sure you want to remove{' '}
-        <strong className="font-semibold text-slate-900 dark:text-slate-100">{snack.name}</strong>{' '}
-        from the pantry? This action cannot be undone.
+        <strong className="font-bold text-zinc-950 dark:text-white">{snack.name}</strong> from
+        the pantry? This action cannot be undone.
       </p>
 
       <div className="mt-6 flex items-center justify-end gap-3">
@@ -364,7 +373,7 @@ export function DeleteSnackModal({
           type="button"
           disabled={isPending}
           onClick={onClose}
-          className="min-h-[40px] rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+          className="min-h-[40px] rounded-xl border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
         >
           Cancel
         </button>
@@ -372,7 +381,7 @@ export function DeleteSnackModal({
           type="button"
           disabled={isPending}
           onClick={handleConfirm}
-          className="min-h-[40px] rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+          className="min-h-[40px] rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-red-700 active:scale-[0.98] disabled:opacity-60"
         >
           {isPending ? 'Removing...' : 'Delete snack'}
         </button>

@@ -8,9 +8,9 @@ interface StockFuelGaugeProps {
 }
 
 const FILL_COLOR: Record<SnackStatus, string> = {
-  stocked: 'bg-emerald-600 dark:bg-emerald-500',
-  running_low: 'bg-amber-500 dark:bg-amber-400',
-  gone: 'bg-red-500 dark:bg-red-500',
+  stocked: 'bg-yellow-400',
+  running_low: 'bg-amber-500',
+  gone: 'bg-red-500',
 };
 
 export function StockFuelGauge({
@@ -28,14 +28,14 @@ export function StockFuelGauge({
     <div className="w-full">
       {!compact && (
         <div className="mb-1.5 flex items-baseline justify-between text-xs">
-          <span className="font-medium text-slate-600 dark:text-slate-300">Stock gauge</span>
-          <span className="font-mono tabular-nums text-slate-500 dark:text-slate-400">
-            <strong className="font-semibold text-slate-900 dark:text-slate-100">{quantity}</strong> left · min {lowStockThreshold}
+          <span className="font-medium text-zinc-600 dark:text-zinc-400">Stock gauge</span>
+          <span className="font-mono tabular-nums text-zinc-500 dark:text-zinc-400">
+            <strong className="font-bold text-zinc-950 dark:text-zinc-100">{quantity}</strong> left · min {lowStockThreshold}
           </span>
         </div>
       )}
       <div
-        className="relative h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
+        className="relative h-2 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800"
         role="progressbar"
         aria-valuenow={quantity}
         aria-valuemin={0}
@@ -48,7 +48,7 @@ export function StockFuelGauge({
         />
         <div
           title={`Low stock threshold: ${lowStockThreshold}`}
-          className="absolute top-0 bottom-0 w-0.5 bg-slate-900/35 dark:bg-white/45"
+          className="absolute top-0 bottom-0 w-0.5 bg-zinc-950/40 dark:bg-white/50"
           style={{ left: `${thresholdPct}%` }}
         />
       </div>

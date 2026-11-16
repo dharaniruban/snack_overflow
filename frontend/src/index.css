@@ -17,6 +17,11 @@
   .font-display {
     font-family: var(--font-display);
   }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
 }
 
 .tabular-nums {

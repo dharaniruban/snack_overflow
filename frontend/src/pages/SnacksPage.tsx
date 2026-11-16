@@ -10,6 +10,7 @@ import {
   X,
   XCircle,
 } from 'lucide-react';
+import { motion } from 'motion/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { SnackCard } from '@/src/components/SnackCard';
@@ -47,7 +48,6 @@ export function SnacksPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Parse URL query params
   const urlQ = searchParams.get('q') ?? '';
   const urlCategory = (
     VALID_CATEGORIES.has(searchParams.get('category') ?? '')
@@ -70,16 +70,13 @@ export function SnacksPage() {
   const rawPageSize = Number.parseInt(searchParams.get('pageSize') ?? '10', 10);
   const urlPageSize = [10, 20, 50].includes(rawPageSize) ? rawPageSize : 10;
 
-  // Local search input synced to URL via debounce
   const [searchInput, setSearchInput] = useState(urlQ);
   const debouncedSearch = useDebouncedValue(searchInput, 280);
 
-  // Keep input aligned when URL changes externally (e.g. Back button or Clear Filters)
   useEffect(() => {
     setSearchInput(urlQ);
   }, [urlQ]);
 
-  // Focus search when navigated via global "/" shortcut
   useEffect(() => {
     const state = location.state as { focusSearch?: boolean } | null;
     if (state?.focusSearch) {
@@ -87,7 +84,6 @@ export function SnacksPage() {
     }
   }, [location.state]);
 
-  // Sync debounced search term into URL query params
   useEffect(() => {
     const trimmed = debouncedSearch.trim();
     if (trimmed === urlQ) return;
@@ -122,17 +118,14 @@ export function SnacksPage() {
 
   const { data, isLoading, isFetching, isError, error, refetch } = useSnacksList(queryParams);
 
-  // View mode on desktop (cards vs table)
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [emptyImgFailed, setEmptyImgFailed] = useState(false);
 
-  // Admin modal state
   const [createOpen, setCreateOpen] = useState(false);
   const [editingSnack, setEditingSnack] = useState<Snack | null>(null);
   const [restockingSnack, setRestockingSnack] = useState<Snack | null>(null);
   const [deletingSnack, setDeletingSnack] = useState<Snack | null>(null);
 
-  // Mutations
   const voteMutation = useVoteMutation();
   const consumeMutation = useConsumeMutation();
   const createMutation = useCreateSnackMutation();
@@ -188,10 +181,10 @@ export function SnacksPage() {
       {/* Header Row */}
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <h1 className="font-display text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
+          <h1 className="font-display text-2xl font-bold tracking-tight text-zinc-950 sm:text-3xl dark:text-white">
             Office Pantry
           </h1>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
             Browse snacks, log what you grab, and vote on favorites for the next restock.
           </p>
         </div>
@@ -201,16 +194,16 @@ export function SnacksPage() {
           <div
             role="group"
             aria-label="View layout"
-            className="hidden items-center rounded-lg border border-slate-200 bg-white p-1 md:inline-flex dark:border-slate-800 dark:bg-slate-900"
+            className="hidden items-center rounded-xl border border-zinc-200 bg-white p-1 md:inline-flex dark:border-zinc-800 dark:bg-zinc-900"
           >
             <button
               type="button"
               onClick={() => setViewMode('cards')}
               aria-pressed={viewMode === 'cards'}
-              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold whitespace-nowrap transition-all ${
                 viewMode === 'cards'
-                  ? 'bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-white'
-                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                  ? 'bg-yellow-400 text-zinc-950'
+                  : 'text-zinc-600 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
               }`}
             >
               <LayoutGrid className="h-3.5 w-3.5" aria-hidden="true" />
@@ -220,10 +213,10 @@ export function SnacksPage() {
               type="button"
               onClick={() => setViewMode('table')}
               aria-pressed={viewMode === 'table'}
-              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold whitespace-nowrap transition-all ${
                 viewMode === 'table'
-                  ? 'bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-white'
-                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                  ? 'bg-yellow-400 text-zinc-950'
+                  : 'text-zinc-600 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
               }`}
             >
               <Table2 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -235,7 +228,7 @@ export function SnacksPage() {
             <button
               type="button"
               onClick={() => setCreateOpen(true)}
-              className="inline-flex min-h-[40px] items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white whitespace-nowrap transition-colors hover:bg-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 dark:hover:bg-emerald-500"
+              className="inline-flex min-h-[42px] items-center gap-2 rounded-xl bg-yellow-400 px-4 py-2 text-sm font-bold text-zinc-950 whitespace-nowrap shadow-[0_1px_0_0_rgba(255,255,255,0.45)_inset] transition-all duration-150 hover:bg-yellow-300 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-400"
             >
               <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
               <span>Add snack</span>
@@ -245,12 +238,12 @@ export function SnacksPage() {
       </div>
 
       {/* Filter & Search Toolbar */}
-      <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+      <div className="space-y-3 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex flex-col gap-3 md:flex-row md:items-center">
           {/* Search Input with "/" hint */}
           <div className="relative flex-1">
             <Search
-              className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-slate-400"
+              className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-zinc-400"
               aria-hidden="true"
             />
             <input
@@ -261,7 +254,7 @@ export function SnacksPage() {
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search snacks by name..."
               aria-label="Search snacks"
-              className="block min-h-[42px] w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pr-14 pl-10 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-100 dark:focus:bg-slate-800"
+              className="block min-h-[42px] w-full rounded-xl border border-zinc-200 bg-zinc-50 py-2 pr-14 pl-10 text-sm text-zinc-950 placeholder:text-zinc-400 transition-colors focus:border-yellow-400 focus:bg-white focus:ring-2 focus:ring-yellow-400/20 focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:bg-zinc-950"
             />
             <div className="absolute inset-y-0 right-2.5 flex items-center gap-1">
               {searchInput ? (
@@ -269,14 +262,14 @@ export function SnacksPage() {
                   type="button"
                   onClick={() => setSearchInput('')}
                   aria-label="Clear search"
-                  className="rounded p-1 text-slate-400 hover:bg-slate-200/60 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                  className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-200/70 hover:text-zinc-800 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
                 >
                   <X className="h-3.5 w-3.5" aria-hidden="true" />
                 </button>
               ) : (
                 <kbd
                   aria-hidden="true"
-                  className="hidden rounded border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[11px] font-medium text-slate-400 sm:inline-block dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300"
+                  className="hidden rounded-md border border-zinc-200 bg-white px-1.5 py-0.5 font-mono text-[11px] font-medium text-zinc-400 sm:inline-block dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
                 >
                   /
                 </kbd>
@@ -290,7 +283,7 @@ export function SnacksPage() {
               aria-label="Filter by stock status"
               value={urlStatus}
               onChange={(e) => updateFilterParam('status', e.target.value)}
-              className="min-h-[42px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 focus:border-emerald-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              className="min-h-[42px] rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-800 focus:border-yellow-400 focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200"
             >
               <option value="">All statuses</option>
               {SNACK_STATUSES.map((s) => (
@@ -300,12 +293,12 @@ export function SnacksPage() {
               ))}
             </select>
 
-            <div className="inline-flex items-center rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+            <div className="inline-flex items-center rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-950">
               <select
                 aria-label="Sort snacks by"
                 value={urlSort}
                 onChange={(e) => updateFilterParam('sort', e.target.value)}
-                className="min-h-[40px] rounded-l-lg bg-transparent py-2 pr-2 pl-3 text-sm font-medium text-slate-700 focus:outline-none dark:text-slate-200"
+                className="min-h-[40px] rounded-l-xl bg-transparent py-2 pr-2 pl-3 text-sm font-medium text-zinc-800 focus:outline-none dark:text-zinc-200"
               >
                 <option value="name">Sort: Name</option>
                 <option value="quantity">Sort: Quantity</option>
@@ -317,7 +310,7 @@ export function SnacksPage() {
                   updateFilterParam('order', urlOrder === 'asc' ? 'desc' : 'asc')
                 }
                 aria-label={`Sort direction: ${urlOrder === 'asc' ? 'Ascending' : 'Descending'}`}
-                className="flex min-h-[40px] items-center gap-1 border-l border-slate-200 px-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700"
+                className="flex min-h-[40px] items-center gap-1 rounded-r-xl border-l border-zinc-200 px-3 text-xs font-bold text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-yellow-400 dark:hover:bg-zinc-800"
               >
                 <ArrowUpDown className="h-3.5 w-3.5" aria-hidden="true" />
                 <span className="uppercase">{urlOrder}</span>
@@ -338,10 +331,10 @@ export function SnacksPage() {
               role="tab"
               aria-selected={urlCategory === ''}
               onClick={() => updateFilterParam('category', '')}
-              className={`min-h-[36px] rounded-lg px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors ${
+              className={`min-h-[36px] rounded-xl px-3.5 py-1.5 text-xs font-bold whitespace-nowrap transition-all active:scale-[0.97] ${
                 urlCategory === ''
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-900 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white'
+                  ? 'bg-yellow-400 text-zinc-950'
+                  : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 hover:text-zinc-950 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:hover:text-white'
               }`}
             >
               All
@@ -353,10 +346,10 @@ export function SnacksPage() {
                 role="tab"
                 aria-selected={urlCategory === cat.value}
                 onClick={() => updateFilterParam('category', cat.value)}
-                className={`min-h-[36px] rounded-lg px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors ${
+                className={`min-h-[36px] rounded-xl px-3.5 py-1.5 text-xs font-bold whitespace-nowrap transition-all active:scale-[0.97] ${
                   urlCategory === cat.value
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-900 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white'
+                    ? 'bg-yellow-400 text-zinc-950'
+                    : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 hover:text-zinc-950 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:hover:text-white'
                 }`}
               >
                 {cat.label}
@@ -368,7 +361,7 @@ export function SnacksPage() {
             <button
               type="button"
               onClick={clearAllFilters}
-              className="text-xs font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+              className="text-xs font-bold text-yellow-600 hover:underline dark:text-yellow-400"
             >
               Reset filters
             </button>
@@ -376,57 +369,61 @@ export function SnacksPage() {
         </div>
       </div>
 
-      {/* Data Region: Loading Skeleton / Error / Empty / Results */}
+      {/* Data Region */}
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, idx) => (
             <div
               key={idx}
-              className="flex h-60 animate-pulse flex-col justify-between rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900"
+              className="flex h-80 animate-pulse flex-col justify-between rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"
             >
-              <div>
-                <div className="h-3 w-24 rounded bg-slate-200 dark:bg-slate-800" />
-                <div className="mt-2.5 h-5 w-40 rounded bg-slate-200 dark:bg-slate-800" />
-                <div className="mt-4 h-5 w-20 rounded bg-slate-200 dark:bg-slate-800" />
-                <div className="mt-5 h-2 w-full rounded-full bg-slate-200 dark:bg-slate-800" />
+              <div className="h-40 w-full rounded-xl bg-zinc-200 dark:bg-zinc-800" />
+              <div className="space-y-2.5">
+                <div className="h-3 w-24 rounded bg-zinc-200 dark:bg-zinc-800" />
+                <div className="h-5 w-40 rounded bg-zinc-200 dark:bg-zinc-800" />
               </div>
-              <div className="h-10 w-full rounded-lg bg-slate-200 dark:bg-slate-800" />
+              <div className="h-10 w-full rounded-xl bg-zinc-200 dark:bg-zinc-800" />
             </div>
           ))}
         </div>
       ) : isError ? (
-        <div className="rounded-xl border border-red-200 bg-white p-8 text-center dark:border-red-900/60 dark:bg-slate-900">
+        <div className="rounded-2xl border border-red-200 bg-white p-8 text-center dark:border-red-900/60 dark:bg-zinc-900">
           <XCircle className="mx-auto h-8 w-8 text-red-600 dark:text-red-400" aria-hidden="true" />
-          <h2 className="mt-3 font-display text-lg font-semibold text-slate-900 dark:text-white">
+          <h2 className="mt-3 font-display text-lg font-bold text-zinc-950 dark:text-white">
             Could not load snacks
           </h2>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
             {getFriendlyErrorMessage(error)}
           </p>
           <button
             type="button"
             onClick={() => void refetch()}
-            className="mt-4 inline-flex min-h-[40px] items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+            className="mt-4 inline-flex min-h-[42px] items-center gap-2 rounded-xl bg-yellow-400 px-4 py-2 text-sm font-bold text-zinc-950 transition-all hover:bg-yellow-300 active:scale-[0.98]"
           >
             <RefreshCw className="h-4 w-4" aria-hidden="true" />
             <span>Retry</span>
           </button>
         </div>
       ) : snacks.length === 0 ? (
-        <div className="rounded-xl border border-slate-200 bg-white px-6 py-12 text-center dark:border-slate-800 dark:bg-slate-900">
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+          className="rounded-2xl border border-zinc-200 bg-white px-6 py-12 text-center dark:border-zinc-800 dark:bg-zinc-900"
+        >
           {!emptyImgFailed && (
             <img
               src={EMPTY_PANTRY_IMAGE}
               alt="Empty glass biscuit jar with toasted crumbs"
               referrerPolicy="no-referrer"
               onError={() => setEmptyImgFailed(true)}
-              className="mx-auto h-36 w-36 rounded-xl border border-slate-100 object-cover dark:border-slate-800"
+              className="mx-auto h-36 w-36 rounded-2xl border border-zinc-100 object-cover dark:border-zinc-800"
             />
           )}
-          <h2 className="mt-5 font-display text-xl font-bold text-slate-900 dark:text-white">
+          <h2 className="mt-5 font-display text-xl font-bold text-zinc-950 dark:text-white">
             The pantry is bare. Someone call the biscuit fairy.
           </h2>
-          <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-400">
+          <p className="mt-1.5 text-sm text-zinc-600 dark:text-zinc-400">
             {hasActiveFilters
               ? 'No snacks match your current search or filters.'
               : 'There are no snacks in the pantry yet.'}
@@ -436,7 +433,7 @@ export function SnacksPage() {
               <button
                 type="button"
                 onClick={clearAllFilters}
-                className="min-h-[40px] rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                className="min-h-[40px] rounded-xl border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
                 Clear filters
               </button>
@@ -445,24 +442,24 @@ export function SnacksPage() {
               <button
                 type="button"
                 onClick={() => setCreateOpen(true)}
-                className="inline-flex min-h-[40px] items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                className="inline-flex min-h-[40px] items-center gap-2 rounded-xl bg-yellow-400 px-4 py-2 text-sm font-bold text-zinc-950 hover:bg-yellow-300"
               >
                 <Plus className="h-4 w-4" aria-hidden="true" />
                 <span>Add first snack</span>
               </button>
             )}
           </div>
-        </div>
+        </motion.div>
       ) : (
         <div className={isFetching ? 'opacity-80 transition-opacity' : ''}>
-          {/* Mobile always shows cards; desktop shows cards or table based on toggle */}
           {viewMode === 'table' ? (
             <>
               <div className="grid grid-cols-1 gap-4 md:hidden">
-                {snacks.map((snack) => (
+                {snacks.map((snack, index) => (
                   <SnackCard
                     key={snack.id}
                     snack={snack}
+                    index={index}
                     isAdmin={isAdmin}
                     isVoting={pendingVoteId === snack.id}
                     isConsuming={pendingConsumeId === snack.id}
@@ -497,10 +494,11 @@ export function SnacksPage() {
             </>
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {snacks.map((snack) => (
+              {snacks.map((snack, index) => (
                 <SnackCard
                   key={snack.id}
                   snack={snack}
+                  index={index}
                   isAdmin={isAdmin}
                   isVoting={pendingVoteId === snack.id}
                   isConsuming={pendingConsumeId === snack.id}
@@ -516,10 +514,9 @@ export function SnacksPage() {
             </div>
           )}
 
-          {/* Pagination Footer */}
           {pagination && (
-            <div className="mt-6 flex flex-col items-center justify-between gap-4 border-t border-slate-200 pt-4 sm:flex-row dark:border-slate-800">
-              <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+            <div className="mt-6 flex flex-col items-center justify-between gap-4 border-t border-zinc-200 pt-4 sm:flex-row dark:border-zinc-800">
+              <div className="flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
                 <span className="font-mono tabular-nums">
                   Page {pagination.page} of {Math.max(1, pagination.totalPages)} · {pagination.total}{' '}
                   {pagination.total === 1 ? 'snack' : 'snacks'}
@@ -528,7 +525,7 @@ export function SnacksPage() {
                   aria-label="Snacks per page"
                   value={urlPageSize}
                   onChange={(e) => updateFilterParam('pageSize', e.target.value)}
-                  className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                  className="rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs font-medium text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
                 >
                   <option value={10}>10 / page</option>
                   <option value={20}>20 / page</option>
@@ -541,7 +538,7 @@ export function SnacksPage() {
                   type="button"
                   disabled={pagination.page <= 1}
                   onClick={() => updateFilterParam('page', String(pagination.page - 1), false)}
-                  className="inline-flex min-h-[38px] items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                  className="inline-flex min-h-[38px] items-center gap-1 rounded-xl border border-zinc-200 bg-white px-3.5 py-1.5 text-xs font-bold text-zinc-800 transition-all hover:bg-zinc-100 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
                 >
                   <ChevronLeft className="h-4 w-4" aria-hidden="true" />
                   <span>Previous</span>
@@ -550,7 +547,7 @@ export function SnacksPage() {
                   type="button"
                   disabled={pagination.page >= pagination.totalPages}
                   onClick={() => updateFilterParam('page', String(pagination.page + 1), false)}
-                  className="inline-flex min-h-[38px] items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                  className="inline-flex min-h-[38px] items-center gap-1 rounded-xl border border-zinc-200 bg-white px-3.5 py-1.5 text-xs font-bold text-zinc-800 transition-all hover:bg-zinc-100 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
                 >
                   <span>Next</span>
                   <ChevronRight className="h-4 w-4" aria-hidden="true" />

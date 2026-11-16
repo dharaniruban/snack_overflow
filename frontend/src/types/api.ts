@@ -26,6 +26,7 @@ export interface Snack {
   status: SnackStatus;
   voteCount: number;
   hasVoted: boolean;
+  imageUrl?: string;
   createdAt?: string;
   updatedAt?: string;
 }
