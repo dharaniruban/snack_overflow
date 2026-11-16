@@ -1,99 +1,245 @@
-import type { AuthUser, LoginResponse } from './types';
+import { ApiError } from '@/src/lib/errors';
+import type {
+  ActivityListResponse,
+  AuthResponse,
+  CreateSnackInput,
+  Snack,
+  SnackQueryParams,
+  SnacksListResponse,
+  SnacksSummaryResponse,
+  UpdateSnackInput,
+  User,
+} from '@/src/types/api';
 
-const TOKEN_KEY = 'snack-overflow.token';
-const USER_KEY = 'snack-overflow.user';
+export const TOKEN_STORAGE_KEY = 'snack_overflow_token';
 export const UNAUTHORIZED_EVENT = 'snack-overflow:unauthorized';
 
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
+export function getApiBaseUrl(): string {
+  const configured = import.meta.env.VITE_API_URL as string | undefined;
+  if (!configured || configured.trim() === '') {
+    return '/api';
+  }
+  return configured.replace(/\/+$/, '');
+}
 
-export class ApiError extends Error {
-  readonly status: number;
-  readonly code: string;
-  readonly details?: unknown;
-
-  constructor(code: string, message: string, status: number, details?: unknown) {
-    super(message);
-    this.name = 'ApiError';
-    this.code = code;
-    this.status = status;
-    if (details !== undefined) this.details = details;
+export function getStoredToken(): string | null {
+  try {
+    return localStorage.getItem(TOKEN_STORAGE_KEY);
+  } catch {
+    return null;
   }
 }
 
-interface RequestOptions {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
-  body?: unknown;
-  token?: string | null;
+export function setStoredToken(token: string | null): void {
+  try {
+    if (token) {
+      localStorage.setItem(TOKEN_STORAGE_KEY, token);
+    } else {
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+    }
+  } catch {
+    // Ignore storage quota errors in restricted environments
+  }
 }
 
-function hasStoredSession(): boolean {
-  return Boolean(localStorage.getItem(TOKEN_KEY));
+export function createIdempotencyKey(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
-export async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', body, token } = options;
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (token) headers.Authorization = `Bearer ${token}`;
+interface RequestOptions extends RequestInit {
+  skipAuthRedirect?: boolean;
+}
 
-  const response = await fetch(`${API_BASE}${path}`, {
-    method,
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const { skipAuthRedirect = false, headers: customHeaders, ...init } = options;
+  const baseUrl = getApiBaseUrl();
+  const token = getStoredToken();
+
+  const headers = new Headers(customHeaders);
+  if (init.body !== undefined && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}${path}`, {
+      ...init,
+      headers,
+    });
+  } catch {
+    throw new ApiError(0, 'NETWORK_ERROR', 'Unable to connect to the server.');
+  }
 
   if (response.status === 204) {
     return undefined as T;
   }
 
-  const payload = (await response.json().catch(() => null)) as
-    { error?: { code?: string; message?: string; details?: unknown } } | T | null;
+  const contentType = response.headers.get('content-type') || '';
+  const isJson = contentType.includes('application/json');
+
+  let payload: unknown = null;
+  if (isJson) {
+    try {
+      payload = await response.json();
+    } catch {
+      payload = null;
+    }
+  }
 
   if (!response.ok) {
-    const apiError = (
-      payload as { error?: { code?: string; message?: string; details?: unknown } } | null
-    )?.error;
-    if (response.status === 401 && hasStoredSession()) {
-      window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+    const errorBody = (payload as { error?: { code?: string; message?: string; details?: unknown } } | null)?.error;
+    if (!isJson || !errorBody) {
+      if (response.status === 401 && !skipAuthRedirect) {
+        setStoredToken(null);
+        window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
+      }
+      if (!isJson) {
+        throw new ApiError(
+          response.status,
+          'BACKEND_UNREACHABLE',
+          `No API JSON response from ${baseUrl}${path} (HTTP ${response.status}).`
+        );
+      }
     }
+
+    const code =
+      errorBody?.code ||
+      (response.status === 401
+        ? 'UNAUTHENTICATED'
+        : response.status === 404
+          ? 'NOT_FOUND'
+          : response.status === 429
+            ? 'RATE_LIMITED'
+            : 'INTERNAL_ERROR');
+    const message = errorBody?.message || response.statusText || 'Request failed';
+
+    if (response.status === 401 && !skipAuthRedirect) {
+      setStoredToken(null);
+      window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
+    }
+
+    throw new ApiError(response.status, code, message, errorBody?.details);
+  }
+
+  if (!isJson) {
     throw new ApiError(
-      apiError?.code ?? 'INTERNAL_ERROR',
-      apiError?.message ?? 'Something went wrong',
       response.status,
-      apiError?.details,
+      'BACKEND_UNREACHABLE',
+      `Expected JSON from ${baseUrl}${path}, received ${contentType || 'non-JSON'}.`
     );
   }
 
   return payload as T;
 }
 
-export function storeSession(token: string, user: AuthUser): void {
-  localStorage.setItem(TOKEN_KEY, token);
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
-}
-
-export function readStoredSession(): { token: string | null; user: AuthUser | null } {
-  const token = localStorage.getItem(TOKEN_KEY);
-  const rawUser = localStorage.getItem(USER_KEY);
-  let user: AuthUser | null = null;
-  if (rawUser) {
-    try {
-      user = JSON.parse(rawUser) as AuthUser;
-    } catch {
-      user = null;
+function buildQueryString(params: Record<string, string | number | undefined>): string {
+  const sp = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== '') {
+      sp.set(key, String(value));
     }
   }
-  return { token, user };
+  const qs = sp.toString();
+  return qs ? `?${qs}` : '';
 }
 
-export function clearSession(): void {
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(USER_KEY);
-}
+export const api = {
+  auth: {
+    login(email: string, password: string): Promise<AuthResponse> {
+      return request<AuthResponse>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+        skipAuthRedirect: true,
+      });
+    },
+    register(name: string, email: string, password: string): Promise<AuthResponse> {
+      return request<AuthResponse>('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ name, email, password }),
+        skipAuthRedirect: true,
+      });
+    },
+    me(): Promise<{ user: User }> {
+      return request<{ user: User }>('/auth/me');
+    },
+  },
 
-export function loginRequest(email: string, password: string): Promise<LoginResponse> {
-  return apiFetch<LoginResponse>('/auth/login', { method: 'POST', body: { email, password } });
-}
+  snacks: {
+    list(params: SnackQueryParams = {}): Promise<SnacksListResponse> {
+      const qs = buildQueryString({
+        category: params.category,
+        status: params.status,
+        q: params.q,
+        page: params.page,
+        pageSize: params.pageSize,
+        sort: params.sort,
+        order: params.order,
+      });
+      return request<SnacksListResponse>(`/snacks${qs}`);
+    },
+    summary(): Promise<SnacksSummaryResponse> {
+      return request<SnacksSummaryResponse>('/snacks/summary');
+    },
+    get(id: string): Promise<Snack> {
+      return request<Snack>(`/snacks/${encodeURIComponent(id)}`);
+    },
+    create(input: CreateSnackInput): Promise<Snack> {
+      return request<Snack>('/snacks', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      });
+    },
+    update(id: string, input: UpdateSnackInput): Promise<Snack> {
+      return request<Snack>(`/snacks/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      });
+    },
+    remove(id: string): Promise<void> {
+      return request<void>(`/snacks/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+    },
+    consume(id: string, amount: number, idempotencyKey: string): Promise<Snack> {
+      return request<Snack>(`/snacks/${encodeURIComponent(id)}/consume`, {
+        method: 'POST',
+        headers: {
+          'Idempotency-Key': idempotencyKey,
+        },
+        body: JSON.stringify({ amount }),
+      });
+    },
+    restock(id: string, amount: number): Promise<Snack> {
+      return request<Snack>(`/snacks/${encodeURIComponent(id)}/restock`, {
+        method: 'POST',
+        body: JSON.stringify({ amount }),
+      });
+    },
+    vote(id: string): Promise<Snack> {
+      return request<Snack>(`/snacks/${encodeURIComponent(id)}/vote`, {
+        method: 'POST',
+      });
+    },
+    unvote(id: string): Promise<void> {
+      return request<void>(`/snacks/${encodeURIComponent(id)}/vote`, {
+        method: 'DELETE',
+      });
+    },
+  },
 
-export function fetchMe(token: string): Promise<AuthUser> {
-  return apiFetch<AuthUser>('/auth/me', { token });
-}
+  activity: {
+    list(params: { page?: number; pageSize?: number } = {}): Promise<ActivityListResponse> {
+      const qs = buildQueryString({
+        page: params.page,
+        pageSize: params.pageSize,
+      });
+      return request<ActivityListResponse>(`/activity${qs}`);
+    },
+  },
+};

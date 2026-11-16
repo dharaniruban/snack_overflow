@@ -1,19 +1,32 @@
-import { useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useAuth } from '@/src/context/AuthContext';
+import { getApiBaseUrl } from '@/src/lib/api';
 
-/**
- * Subscribes to the backend SSE stream and calls `onEvent` whenever a snack
- * changes. EventSource cannot send Authorization headers, so the short-lived
- * JWT is passed as a query parameter (the endpoint accepts it only there).
- */
-export function useSnackEvents(token: string | null, onEvent: () => void): void {
-  const onEventRef = useRef(onEvent);
-  onEventRef.current = onEvent;
+export function useSnackEvents(): void {
+  const { token, isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (!token) return;
-    const source = new EventSource(`/events?token=${encodeURIComponent(token)}`);
-    source.onmessage = () => onEventRef.current();
-    // EventSource reconnects automatically; errors are non-fatal.
-    return () => source.close();
-  }, [token]);
+    if (!isAuthenticated || !token) {
+      return;
+    }
+
+    const baseUrl = getApiBaseUrl();
+    const url = `${baseUrl}/events?token=${encodeURIComponent(token)}`;
+    const eventSource = new EventSource(url);
+
+    const handleSnackEvent = () => {
+      void queryClient.invalidateQueries({ queryKey: ['snacks'] });
+      void queryClient.invalidateQueries({ queryKey: ['activity'] });
+    };
+
+    eventSource.addEventListener('snack', handleSnackEvent);
+    eventSource.onmessage = handleSnackEvent;
+
+    return () => {
+      eventSource.removeEventListener('snack', handleSnackEvent);
+      eventSource.close();
+    };
+  }, [isAuthenticated, token, queryClient]);
 }

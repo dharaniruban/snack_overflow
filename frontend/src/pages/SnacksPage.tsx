@@ -1,453 +1,613 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
+  LayoutGrid,
+  Plus,
+  RefreshCw,
+  Search,
+  Table2,
+  X,
+  XCircle,
+} from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { apiFetch } from '../lib/api';
-import { useAuth } from '../lib/auth';
-import { friendlyError } from '../lib/errors';
-import type { Snack, SnackCategory, SnackListResponse, SnackStatus } from '../lib/types';
-import { useDebouncedValue } from '../hooks/useDebouncedValue';
-import { useSnackEvents } from '../hooks/useSnackEvents';
-import { useToast } from '../components/Toast';
-import { SnackCard } from '../components/SnackCard';
-import { SnackCardSkeleton } from '../components/Skeleton';
-import { AmountDialog } from '../components/AmountDialog';
-import { SnackFormDialog } from '../components/SnackFormDialog';
-import { ConfirmDialog } from '../components/ConfirmDialog';
+import { useLocation, useSearchParams } from 'react-router-dom';
+import { SnackCard } from '@/src/components/SnackCard';
+import { DeleteSnackModal, RestockModal, SnackFormModal } from '@/src/components/SnackModals';
+import { SnackTable } from '@/src/components/SnackTable';
+import { useAuth } from '@/src/context/AuthContext';
+import { useDebouncedValue } from '@/src/hooks/useDebounce';
+import {
+  useConsumeMutation,
+  useCreateSnackMutation,
+  useDeleteSnackMutation,
+  useRestockMutation,
+  useUpdateSnackMutation,
+  useVoteMutation,
+} from '@/src/hooks/useSnackMutations';
+import { useSnacksList } from '@/src/hooks/useSnacksQuery';
+import { getFriendlyErrorMessage } from '@/src/lib/errors';
+import { SNACK_CATEGORIES, SNACK_STATUSES } from '@/src/lib/snackDisplay';
+import type {
+  Snack,
+  SnackCategory,
+  SnackSortField,
+  SnackStatus,
+  SortOrder,
+} from '@/src/types/api';
 
-const PAGE_SIZE = 12;
-const CATEGORIES: Array<SnackCategory | ''> = ['', 'sweet', 'savoury', 'drink', 'healthy-ish'];
-const STATUSES: Array<SnackStatus | ''> = ['', 'stocked', 'running_low', 'gone'];
+const EMPTY_PANTRY_IMAGE = '/src/assets/images/empty_pantry_jar_1794826280565.jpg';
+const VALID_CATEGORIES = new Set<string>(SNACK_CATEGORIES.map((c) => c.value));
+const VALID_STATUSES = new Set<string>(SNACK_STATUSES.map((s) => s.value));
+const VALID_SORTS = new Set<string>(['name', 'quantity', 'votes']);
 
 export function SnacksPage() {
-  const { token, isAdmin } = useAuth();
-  const { push } = useToast();
-  const queryClient = useQueryClient();
+  const { isAdmin } = useAuth();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
-  const category = (searchParams.get('category') ?? '') as SnackCategory | '';
-  const status = (searchParams.get('status') ?? '') as SnackStatus | '';
-  const qParam = searchParams.get('q') ?? '';
-  const page = Math.max(1, Number(searchParams.get('page') ?? '1') || 1);
+  // Parse URL query params
+  const urlQ = searchParams.get('q') ?? '';
+  const urlCategory = (
+    VALID_CATEGORIES.has(searchParams.get('category') ?? '')
+      ? searchParams.get('category')
+      : ''
+  ) as SnackCategory | '';
+  const urlStatus = (
+    VALID_STATUSES.has(searchParams.get('status') ?? '')
+      ? searchParams.get('status')
+      : ''
+  ) as SnackStatus | '';
+  const urlSort = (
+    VALID_SORTS.has(searchParams.get('sort') ?? '')
+      ? searchParams.get('sort')
+      : 'name'
+  ) as SnackSortField;
+  const urlOrder = (searchParams.get('order') === 'desc' ? 'desc' : 'asc') as SortOrder;
+  const rawPage = Number.parseInt(searchParams.get('page') ?? '1', 10);
+  const urlPage = Number.isNaN(rawPage) || rawPage < 1 ? 1 : rawPage;
+  const rawPageSize = Number.parseInt(searchParams.get('pageSize') ?? '10', 10);
+  const urlPageSize = [10, 20, 50].includes(rawPageSize) ? rawPageSize : 10;
 
-  const [searchInput, setSearchInput] = useState(qParam);
-  const debouncedSearch = useDebouncedValue(searchInput, 300);
-  const searchRef = useRef<HTMLInputElement>(null);
+  // Local search input synced to URL via debounce
+  const [searchInput, setSearchInput] = useState(urlQ);
+  const debouncedSearch = useDebouncedValue(searchInput, 280);
 
-  const [consumeTarget, setConsumeTarget] = useState<Snack | null>(null);
-  const [restockTarget, setRestockTarget] = useState<Snack | null>(null);
-  const [formOpen, setFormOpen] = useState(false);
+  // Keep input aligned when URL changes externally (e.g. Back button or Clear Filters)
+  useEffect(() => {
+    setSearchInput(urlQ);
+  }, [urlQ]);
+
+  // Focus search when navigated via global "/" shortcut
+  useEffect(() => {
+    const state = location.state as { focusSearch?: boolean } | null;
+    if (state?.focusSearch) {
+      searchInputRef.current?.focus();
+    }
+  }, [location.state]);
+
+  // Sync debounced search term into URL query params
+  useEffect(() => {
+    const trimmed = debouncedSearch.trim();
+    if (trimmed === urlQ) return;
+
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (trimmed) {
+          next.set('q', trimmed);
+        } else {
+          next.delete('q');
+        }
+        next.set('page', '1');
+        return next;
+      },
+      { replace: true }
+    );
+  }, [debouncedSearch, urlQ, setSearchParams]);
+
+  const queryParams = useMemo(
+    () => ({
+      q: urlQ || undefined,
+      category: urlCategory || undefined,
+      status: urlStatus || undefined,
+      sort: urlSort,
+      order: urlOrder,
+      page: urlPage,
+      pageSize: urlPageSize,
+    }),
+    [urlQ, urlCategory, urlStatus, urlSort, urlOrder, urlPage, urlPageSize]
+  );
+
+  const { data, isLoading, isFetching, isError, error, refetch } = useSnacksList(queryParams);
+
+  // View mode on desktop (cards vs table)
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+  const [emptyImgFailed, setEmptyImgFailed] = useState(false);
+
+  // Admin modal state
+  const [createOpen, setCreateOpen] = useState(false);
   const [editingSnack, setEditingSnack] = useState<Snack | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<Snack | null>(null);
-  const [confettiSnackId, setConfettiSnackId] = useState<string | null>(null);
+  const [restockingSnack, setRestockingSnack] = useState<Snack | null>(null);
+  const [deletingSnack, setDeletingSnack] = useState<Snack | null>(null);
 
-  // Keep the search box in sync when the URL changes (back/forward, clear).
-  useEffect(() => {
-    setSearchInput(qParam);
-  }, [qParam]);
+  // Mutations
+  const voteMutation = useVoteMutation();
+  const consumeMutation = useConsumeMutation();
+  const createMutation = useCreateSnackMutation();
+  const updateMutation = useUpdateSnackMutation();
+  const restockMutation = useRestockMutation();
+  const deleteMutation = useDeleteSnackMutation();
 
-  useEffect(() => {
-    if (debouncedSearch === qParam) return;
-    setSearchParams(
-      (previous) => {
-        const next = new URLSearchParams(previous);
-        if (debouncedSearch) next.set('q', debouncedSearch);
-        else next.delete('q');
-        next.delete('page');
-        return next;
-      },
-      { replace: true },
-    );
-  }, [debouncedSearch, qParam, setSearchParams]);
+  const pendingVoteId = voteMutation.isPending ? voteMutation.variables?.snack.id ?? null : null;
+  const pendingConsumeId = consumeMutation.isPending
+    ? consumeMutation.variables?.snackId ?? null
+    : null;
 
-  // "/" focuses search from anywhere on the page.
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      const typing = target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
-      if (event.key === '/' && !typing) {
-        event.preventDefault();
-        searchRef.current?.focus();
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
-
-  const queryString = useMemo(() => {
-    const params = new URLSearchParams();
-    params.set('page', String(page));
-    params.set('pageSize', String(PAGE_SIZE));
-    if (category) params.set('category', category);
-    if (status) params.set('status', status);
-    if (qParam) params.set('q', qParam);
-    return params.toString();
-  }, [page, category, status, qParam]);
-
-  const snacksQuery = useQuery({
-    queryKey: ['snacks', queryString],
-    queryFn: () => apiFetch<SnackListResponse>(`/snacks?${queryString}`, { token }),
-    enabled: Boolean(token),
-    placeholderData: keepPreviousData,
-  });
-
-  const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: ['snacks'] });
-    void queryClient.invalidateQueries({ queryKey: ['snack-summary'] });
-  };
-
-  // Live updates: any consume/restock/vote/CRUD event refetches server truth.
-  useSnackEvents(token, invalidate);
-
-  const consumeMutation = useMutation({
-    mutationFn: ({ id, amount }: { id: string; amount: number }) =>
-      apiFetch<Snack>(`/snacks/${id}/consume`, { method: 'POST', body: { amount }, token }),
-    onSuccess: () => {
-      push('success', 'Crunch logged. Stay hydrated.');
-      invalidate();
-    },
-    onError: (error) => {
-      push('error', friendlyError(error));
-      invalidate();
-    },
-    onSettled: () => setConsumeTarget(null),
-  });
-
-  const restockMutation = useMutation({
-    mutationFn: ({ id, amount }: { id: string; amount: number }) =>
-      apiFetch<Snack>(`/snacks/${id}/restock`, { method: 'POST', body: { amount }, token }),
-    onSuccess: () => {
-      push('success', 'Back on the shelf. The office rejoices.');
-      invalidate();
-    },
-    onError: (error) => {
-      push('error', friendlyError(error));
-      invalidate();
-    },
-    onSettled: () => setRestockTarget(null),
-  });
-
-  const voteMutation = useMutation<
-    Snack | undefined,
-    Error,
-    { snack: Snack; action: 'vote' | 'unvote' },
-    { previous: SnackListResponse | undefined }
-  >({
-    mutationFn: async ({ snack, action }) => {
-      if (action === 'vote') {
-        return apiFetch<Snack>(`/snacks/${snack.id}/vote`, { method: 'POST', token });
-      }
-      await apiFetch<void>(`/snacks/${snack.id}/vote`, { method: 'DELETE', token });
-      return snack;
-    },
-    // Optimistic vote: flip hasVoted/voteCount in the cache immediately and
-    // roll back to the snapshot if the server rejects the change.
-    onMutate: async ({ snack, action }) => {
-      await queryClient.cancelQueries({ queryKey: ['snacks', queryString] });
-      const previous = queryClient.getQueryData<SnackListResponse>(['snacks', queryString]);
-      if (previous) {
-        queryClient.setQueryData<SnackListResponse>(['snacks', queryString], {
-          ...previous,
-          data: previous.data.map((item) =>
-            item.id === snack.id
-              ? {
-                  ...item,
-                  hasVoted: action === 'vote',
-                  voteCount: Math.max(0, item.voteCount + (action === 'vote' ? 1 : -1)),
-                }
-              : item,
-          ),
-        });
-      }
-      return { previous };
-    },
-    onSuccess: (_data, variables) => {
-      if (variables.action === 'vote') {
-        push('success', 'Vote counted! Democracy is delicious.');
-        setConfettiSnackId(variables.snack.id);
-        window.setTimeout(() => setConfettiSnackId(null), 900);
+  const updateFilterParam = (key: string, value: string, resetPage = true) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value) {
+        next.set(key, value);
       } else {
-        push('info', 'Vote removed. No hard feelings.');
+        next.delete(key);
       }
-    },
-    onError: (error, _variables, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(['snacks', queryString], context.previous);
+      if (resetPage) {
+        next.set('page', '1');
       }
-      push('error', friendlyError(error));
-    },
-    onSettled: invalidate,
-  });
-
-  const saveMutation = useMutation({
-    mutationFn: (values: {
-      name: string;
-      category: SnackCategory;
-      quantity: number;
-      lowStockThreshold: number;
-    }) => {
-      if (editingSnack) {
-        return apiFetch<Snack>(`/snacks/${editingSnack.id}`, {
-          method: 'PATCH',
-          body: values,
-          token,
-        });
-      }
-      return apiFetch<Snack>('/snacks', { method: 'POST', body: values, token });
-    },
-    onSuccess: () => {
-      push('success', editingSnack ? 'Snack updated.' : 'Snack added to the pantry.');
-      setFormOpen(false);
-      setEditingSnack(null);
-      invalidate();
-    },
-    onError: (error) => {
-      push('error', friendlyError(error));
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => apiFetch<void>(`/snacks/${id}`, { method: 'DELETE', token }),
-    onSuccess: () => {
-      push('success', 'Snack removed. It lived a full life.');
-      setDeleteTarget(null);
-      invalidate();
-    },
-    onError: (error) => {
-      push('error', friendlyError(error));
-    },
-  });
-
-  const busy =
-    consumeMutation.isPending ||
-    restockMutation.isPending ||
-    voteMutation.isPending ||
-    saveMutation.isPending ||
-    deleteMutation.isPending;
-
-  const snacks = snacksQuery.data?.data ?? [];
-  const pagination = snacksQuery.data?.pagination;
-  const hasFilters = Boolean(category || status || qParam);
-
-  const updateParam = (key: string, value: string) => {
-    setSearchParams(
-      (previous) => {
-        const next = new URLSearchParams(previous);
-        if (value) next.set(key, value);
-        else next.delete(key);
-        next.delete('page');
-        return next;
-      },
-      { replace: true },
-    );
+      return next;
+    });
   };
 
-  const setPage = (nextPage: number) => {
-    setSearchParams(
-      (previous) => {
-        const next = new URLSearchParams(previous);
-        if (nextPage <= 1) next.delete('page');
-        else next.set('page', String(nextPage));
-        return next;
-      },
-      { replace: true },
-    );
+  const handleSortChange = (field: SnackSortField) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (urlSort === field) {
+        next.set('order', urlOrder === 'asc' ? 'desc' : 'asc');
+      } else {
+        next.set('sort', field);
+        next.set('order', field === 'name' ? 'asc' : 'desc');
+      }
+      next.set('page', '1');
+      return next;
+    });
   };
+
+  const clearAllFilters = () => {
+    setSearchInput('');
+    setSearchParams({});
+  };
+
+  const hasActiveFilters = Boolean(urlQ || urlCategory || urlStatus);
+  const snacks = data?.data ?? [];
+  const pagination = data?.pagination;
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="space-y-6">
+      {/* Header Row */}
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Pantry snacks</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Vote, consume, and keep the office fed.
+          <h1 className="font-display text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
+            Office Pantry
+          </h1>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+            Browse snacks, log what you grab, and vote on favorites for the next restock.
           </p>
         </div>
-        {isAdmin && (
-          <button
-            type="button"
-            onClick={() => {
-              setEditingSnack(null);
-              setFormOpen(true);
-            }}
-            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
-          >
-            Add snack
-          </button>
-        )}
-      </div>
 
-      <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <input
-            ref={searchRef}
-            type="search"
-            value={searchInput}
-            onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Search snacks… (press /)"
-            aria-label="Search snacks"
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 pr-12 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-          />
-          <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300">
-            /
-          </kbd>
-        </div>
-        <select
-          value={category}
-          onChange={(event) => updateParam('category', event.target.value)}
-          aria-label="Filter by category"
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-        >
-          <option value="">All categories</option>
-          {CATEGORIES.filter(Boolean).map((value) => (
-            <option key={value} value={value}>
-              {value}
-            </option>
-          ))}
-        </select>
-        <select
-          value={status}
-          onChange={(event) => updateParam('status', event.target.value)}
-          aria-label="Filter by status"
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-        >
-          <option value="">All statuses</option>
-          {STATUSES.filter(Boolean).map((value) => (
-            <option key={value} value={value}>
-              {value.replace('_', ' ')}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {snacksQuery.isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <SnackCardSkeleton key={index} />
-          ))}
-        </div>
-      ) : snacksQuery.isError ? (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 p-8 text-center dark:border-rose-900 dark:bg-rose-950/30">
-          <p className="text-rose-700 dark:text-rose-300">{friendlyError(snacksQuery.error)}</p>
-          <button
-            type="button"
-            onClick={() => snacksQuery.refetch()}
-            className="mt-4 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
+        <div className="flex items-center gap-2.5">
+          {/* Desktop View Toggle */}
+          <div
+            role="group"
+            aria-label="View layout"
+            className="hidden items-center rounded-lg border border-slate-200 bg-white p-1 md:inline-flex dark:border-slate-800 dark:bg-slate-900"
           >
-            Retry
-          </button>
-        </div>
-      ) : snacks.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-300 p-10 text-center dark:border-slate-700">
-          <div className="text-5xl" aria-hidden="true">
-            🍪
-          </div>
-          <p className="mt-3 font-medium text-slate-700 dark:text-slate-200">
-            {hasFilters
-              ? 'No snacks match those filters.'
-              : 'The pantry is bare. Someone call the biscuit fairy.'}
-          </p>
-          {hasFilters && (
             <button
               type="button"
-              onClick={() => setSearchParams({}, { replace: true })}
-              className="mt-4 rounded-lg bg-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              onClick={() => setViewMode('cards')}
+              aria-pressed={viewMode === 'cards'}
+              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${
+                viewMode === 'cards'
+                  ? 'bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-white'
+                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+              }`}
             >
-              Clear filters
+              <LayoutGrid className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>Cards</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('table')}
+              aria-pressed={viewMode === 'table'}
+              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${
+                viewMode === 'table'
+                  ? 'bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-white'
+                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+              }`}
+            >
+              <Table2 className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>Table</span>
+            </button>
+          </div>
+
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setCreateOpen(true)}
+              className="inline-flex min-h-[40px] items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white whitespace-nowrap transition-colors hover:bg-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 dark:hover:bg-emerald-500"
+            >
+              <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>Add snack</span>
             </button>
           )}
         </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {snacks.map((snack, index) => (
-            <SnackCard
-              key={snack.id}
-              index={index}
-              snack={snack}
-              isAdmin={isAdmin}
-              disabled={busy}
-              showConfetti={confettiSnackId === snack.id}
-              onConsume={setConsumeTarget}
-              onRestock={setRestockTarget}
-              onVote={(target) =>
-                voteMutation.mutate({ snack: target, action: target.hasVoted ? 'unvote' : 'vote' })
-              }
-              onEdit={(target) => {
-                setEditingSnack(target);
-                setFormOpen(true);
-              }}
-              onDelete={setDeleteTarget}
+      </div>
+
+      {/* Filter & Search Toolbar */}
+      <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center">
+          {/* Search Input with "/" hint */}
+          <div className="relative flex-1">
+            <Search
+              className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-slate-400"
+              aria-hidden="true"
             />
+            <input
+              id="pantry-search-input"
+              ref={searchInputRef}
+              type="search"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Search snacks by name..."
+              aria-label="Search snacks"
+              className="block min-h-[42px] w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pr-14 pl-10 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-100 dark:focus:bg-slate-800"
+            />
+            <div className="absolute inset-y-0 right-2.5 flex items-center gap-1">
+              {searchInput ? (
+                <button
+                  type="button"
+                  onClick={() => setSearchInput('')}
+                  aria-label="Clear search"
+                  className="rounded p-1 text-slate-400 hover:bg-slate-200/60 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                >
+                  <X className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              ) : (
+                <kbd
+                  aria-hidden="true"
+                  className="hidden rounded border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[11px] font-medium text-slate-400 sm:inline-block dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300"
+                >
+                  /
+                </kbd>
+              )}
+            </div>
+          </div>
+
+          {/* Sort & Status Controls */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            <select
+              aria-label="Filter by stock status"
+              value={urlStatus}
+              onChange={(e) => updateFilterParam('status', e.target.value)}
+              className="min-h-[42px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 focus:border-emerald-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            >
+              <option value="">All statuses</option>
+              {SNACK_STATUSES.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+
+            <div className="inline-flex items-center rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+              <select
+                aria-label="Sort snacks by"
+                value={urlSort}
+                onChange={(e) => updateFilterParam('sort', e.target.value)}
+                className="min-h-[40px] rounded-l-lg bg-transparent py-2 pr-2 pl-3 text-sm font-medium text-slate-700 focus:outline-none dark:text-slate-200"
+              >
+                <option value="name">Sort: Name</option>
+                <option value="quantity">Sort: Quantity</option>
+                <option value="votes">Sort: Votes</option>
+              </select>
+              <button
+                type="button"
+                onClick={() =>
+                  updateFilterParam('order', urlOrder === 'asc' ? 'desc' : 'asc')
+                }
+                aria-label={`Sort direction: ${urlOrder === 'asc' ? 'Ascending' : 'Descending'}`}
+                className="flex min-h-[40px] items-center gap-1 border-l border-slate-200 px-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700"
+              >
+                <ArrowUpDown className="h-3.5 w-3.5" aria-hidden="true" />
+                <span className="uppercase">{urlOrder}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Category Filter Tabs */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+          <div
+            role="tablist"
+            aria-label="Filter by snack category"
+            className="flex flex-wrap items-center gap-1.5"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={urlCategory === ''}
+              onClick={() => updateFilterParam('category', '')}
+              className={`min-h-[36px] rounded-lg px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors ${
+                urlCategory === ''
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-900 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white'
+              }`}
+            >
+              All
+            </button>
+            {SNACK_CATEGORIES.map((cat) => (
+              <button
+                key={cat.value}
+                type="button"
+                role="tab"
+                aria-selected={urlCategory === cat.value}
+                onClick={() => updateFilterParam('category', cat.value)}
+                className={`min-h-[36px] rounded-lg px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors ${
+                  urlCategory === cat.value
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-900 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white'
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={clearAllFilters}
+              className="text-xs font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+            >
+              Reset filters
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Data Region: Loading Skeleton / Error / Empty / Results */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, idx) => (
+            <div
+              key={idx}
+              className="flex h-60 animate-pulse flex-col justify-between rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900"
+            >
+              <div>
+                <div className="h-3 w-24 rounded bg-slate-200 dark:bg-slate-800" />
+                <div className="mt-2.5 h-5 w-40 rounded bg-slate-200 dark:bg-slate-800" />
+                <div className="mt-4 h-5 w-20 rounded bg-slate-200 dark:bg-slate-800" />
+                <div className="mt-5 h-2 w-full rounded-full bg-slate-200 dark:bg-slate-800" />
+              </div>
+              <div className="h-10 w-full rounded-lg bg-slate-200 dark:bg-slate-800" />
+            </div>
           ))}
+        </div>
+      ) : isError ? (
+        <div className="rounded-xl border border-red-200 bg-white p-8 text-center dark:border-red-900/60 dark:bg-slate-900">
+          <XCircle className="mx-auto h-8 w-8 text-red-600 dark:text-red-400" aria-hidden="true" />
+          <h2 className="mt-3 font-display text-lg font-semibold text-slate-900 dark:text-white">
+            Could not load snacks
+          </h2>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+            {getFriendlyErrorMessage(error)}
+          </p>
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            className="mt-4 inline-flex min-h-[40px] items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+          >
+            <RefreshCw className="h-4 w-4" aria-hidden="true" />
+            <span>Retry</span>
+          </button>
+        </div>
+      ) : snacks.length === 0 ? (
+        <div className="rounded-xl border border-slate-200 bg-white px-6 py-12 text-center dark:border-slate-800 dark:bg-slate-900">
+          {!emptyImgFailed && (
+            <img
+              src={EMPTY_PANTRY_IMAGE}
+              alt="Empty glass biscuit jar with toasted crumbs"
+              referrerPolicy="no-referrer"
+              onError={() => setEmptyImgFailed(true)}
+              className="mx-auto h-36 w-36 rounded-xl border border-slate-100 object-cover dark:border-slate-800"
+            />
+          )}
+          <h2 className="mt-5 font-display text-xl font-bold text-slate-900 dark:text-white">
+            The pantry is bare. Someone call the biscuit fairy.
+          </h2>
+          <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-400">
+            {hasActiveFilters
+              ? 'No snacks match your current search or filters.'
+              : 'There are no snacks in the pantry yet.'}
+          </p>
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={clearAllFilters}
+                className="min-h-[40px] rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                Clear filters
+              </button>
+            )}
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setCreateOpen(true)}
+                className="inline-flex min-h-[40px] items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+              >
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                <span>Add first snack</span>
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className={isFetching ? 'opacity-80 transition-opacity' : ''}>
+          {/* Mobile always shows cards; desktop shows cards or table based on toggle */}
+          {viewMode === 'table' ? (
+            <>
+              <div className="grid grid-cols-1 gap-4 md:hidden">
+                {snacks.map((snack) => (
+                  <SnackCard
+                    key={snack.id}
+                    snack={snack}
+                    isAdmin={isAdmin}
+                    isVoting={pendingVoteId === snack.id}
+                    isConsuming={pendingConsumeId === snack.id}
+                    onVote={(s, el) => voteMutation.mutate({ snack: s, anchorEl: el })}
+                    onConsume={(s, amount) =>
+                      consumeMutation.mutate({ snackId: s.id, snackName: s.name, amount })
+                    }
+                    onRestock={setRestockingSnack}
+                    onEdit={setEditingSnack}
+                    onDelete={setDeletingSnack}
+                  />
+                ))}
+              </div>
+              <div className="hidden md:block">
+                <SnackTable
+                  snacks={snacks}
+                  isAdmin={isAdmin}
+                  sort={urlSort}
+                  order={urlOrder}
+                  pendingVoteId={pendingVoteId}
+                  pendingConsumeId={pendingConsumeId}
+                  onSortChange={handleSortChange}
+                  onVote={(s, el) => voteMutation.mutate({ snack: s, anchorEl: el })}
+                  onConsume={(s, amount) =>
+                    consumeMutation.mutate({ snackId: s.id, snackName: s.name, amount })
+                  }
+                  onRestock={setRestockingSnack}
+                  onEdit={setEditingSnack}
+                  onDelete={setDeletingSnack}
+                />
+              </div>
+            </>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {snacks.map((snack) => (
+                <SnackCard
+                  key={snack.id}
+                  snack={snack}
+                  isAdmin={isAdmin}
+                  isVoting={pendingVoteId === snack.id}
+                  isConsuming={pendingConsumeId === snack.id}
+                  onVote={(s, el) => voteMutation.mutate({ snack: s, anchorEl: el })}
+                  onConsume={(s, amount) =>
+                    consumeMutation.mutate({ snackId: s.id, snackName: s.name, amount })
+                  }
+                  onRestock={setRestockingSnack}
+                  onEdit={setEditingSnack}
+                  onDelete={setDeletingSnack}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Pagination Footer */}
+          {pagination && (
+            <div className="mt-6 flex flex-col items-center justify-between gap-4 border-t border-slate-200 pt-4 sm:flex-row dark:border-slate-800">
+              <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+                <span className="font-mono tabular-nums">
+                  Page {pagination.page} of {Math.max(1, pagination.totalPages)} · {pagination.total}{' '}
+                  {pagination.total === 1 ? 'snack' : 'snacks'}
+                </span>
+                <select
+                  aria-label="Snacks per page"
+                  value={urlPageSize}
+                  onChange={(e) => updateFilterParam('pageSize', e.target.value)}
+                  className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                >
+                  <option value={10}>10 / page</option>
+                  <option value={20}>20 / page</option>
+                  <option value={50}>50 / page</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={pagination.page <= 1}
+                  onClick={() => updateFilterParam('page', String(pagination.page - 1), false)}
+                  className="inline-flex min-h-[38px] items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                  <span>Previous</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={pagination.page >= pagination.totalPages}
+                  onClick={() => updateFilterParam('page', String(pagination.page + 1), false)}
+                  className="inline-flex min-h-[38px] items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  <span>Next</span>
+                  <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {pagination && pagination.totalPages > 1 && (
-        <nav
-          className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900"
-          aria-label="Pagination"
-        >
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Page {pagination.page} of {pagination.totalPages} · {pagination.total} snacks
-          </p>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setPage(page - 1)}
-              disabled={page <= 1 || snacksQuery.isFetching}
-              className="rounded-lg bg-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-300 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-            >
-              Previous
-            </button>
-            <button
-              type="button"
-              onClick={() => setPage(page + 1)}
-              disabled={page >= pagination.totalPages || snacksQuery.isFetching}
-              className="rounded-lg bg-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-300 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-            >
-              Next
-            </button>
-          </div>
-        </nav>
+      {/* Admin Modals */}
+      {isAdmin && createOpen && (
+        <SnackFormModal
+          mode="create"
+          isPending={createMutation.isPending}
+          onClose={() => setCreateOpen(false)}
+          onSubmitCreate={async (input) => {
+            await createMutation.mutateAsync(input);
+          }}
+          onSubmitEdit={async () => {}}
+        />
       )}
 
-      <AmountDialog
-        open={consumeTarget !== null}
-        onClose={() => setConsumeTarget(null)}
-        onConfirm={(amount) =>
-          consumeTarget && consumeMutation.mutate({ id: consumeTarget.id, amount })
-        }
-        loading={consumeMutation.isPending}
-        mode="consume"
-        snackName={consumeTarget?.name ?? ''}
-      />
-      <AmountDialog
-        open={restockTarget !== null}
-        onClose={() => setRestockTarget(null)}
-        onConfirm={(amount) =>
-          restockTarget && restockMutation.mutate({ id: restockTarget.id, amount })
-        }
-        loading={restockMutation.isPending}
-        mode="restock"
-        snackName={restockTarget?.name ?? ''}
-      />
-      <SnackFormDialog
-        open={formOpen}
-        onClose={() => {
-          setFormOpen(false);
-          setEditingSnack(null);
-        }}
-        onSubmit={(values) => saveMutation.mutate(values)}
-        loading={saveMutation.isPending}
-        snack={editingSnack}
-      />
-      <ConfirmDialog
-        open={deleteTarget !== null}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
-        loading={deleteMutation.isPending}
-        title="Delete snack?"
-        message={`"${deleteTarget?.name ?? ''}" will be removed from the pantry. Past activity is kept as history.`}
-      />
+      {isAdmin && editingSnack && (
+        <SnackFormModal
+          mode="edit"
+          initialSnack={editingSnack}
+          isPending={updateMutation.isPending}
+          onClose={() => setEditingSnack(null)}
+          onSubmitCreate={async () => {}}
+          onSubmitEdit={async (id, input) => {
+            await updateMutation.mutateAsync({ id, input });
+          }}
+        />
+      )}
+
+      {isAdmin && restockingSnack && (
+        <RestockModal
+          snack={restockingSnack}
+          isPending={restockMutation.isPending}
+          onClose={() => setRestockingSnack(null)}
+          onSubmit={async (snackId, amount) => {
+            await restockMutation.mutateAsync({ snackId, amount });
+          }}
+        />
+      )}
+
+      {isAdmin && deletingSnack && (
+        <DeleteSnackModal
+          snack={deletingSnack}
+          isPending={deleteMutation.isPending}
+          onClose={() => setDeletingSnack(null)}
+          onConfirm={async (snack) => {
+            await deleteMutation.mutateAsync({ id: snack.id, name: snack.name });
+          }}
+        />
+      )}
     </div>
   );
 }
