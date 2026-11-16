@@ -3,7 +3,8 @@ import jwt, { type SignOptions } from 'jsonwebtoken';
 import { env } from '../../config/env';
 import { pool } from '../../db/pool';
 import { AppError } from '../../utils/errors';
-import type { LoginResponse } from '../../types/auth';
+import { isUniqueViolation } from '../../utils/pgErrors';
+import type { LoginResponse, SafeUserRow } from '../../types/auth';
 import { userRepository } from './repository';
 
 // Precomputed once so unknown-email logins pay the same bcrypt cost as
@@ -37,5 +38,30 @@ export const authService = {
         role: user.role,
       },
     };
+  },
+
+  async register(name: string, email: string, password: string): Promise<SafeUserRow> {
+    const passwordHash = await bcrypt.hash(password, env.BCRYPT_COST);
+    try {
+      const user = await userRepository.create(pool, {
+        name,
+        email,
+        passwordHash,
+        // Self-registration can only ever create members; admins are seeded.
+        role: 'member',
+      });
+      return {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        created_at: user.created_at,
+      };
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new AppError('DUPLICATE_NAME', 'An account with that email already exists');
+      }
+      throw error;
+    }
   },
 };

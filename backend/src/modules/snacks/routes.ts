@@ -20,16 +20,30 @@ router.get('/', validate({ query: listSnacksQuerySchema }), snackController.list
 router.get('/summary', snackController.summary);
 router.get('/:id', validate({ params: snackIdParamSchema }), snackController.getById);
 
-router.post('/', requireRole('admin'), validate({ body: createSnackSchema }), snackController.create);
+router.post(
+  '/',
+  requireRole('admin'),
+  validate({ body: createSnackSchema }),
+  snackController.create,
+);
 router.patch(
   '/:id',
   requireRole('admin'),
   validate({ params: snackIdParamSchema, body: updateSnackSchema }),
   snackController.update,
 );
-router.delete('/:id', requireRole('admin'), validate({ params: snackIdParamSchema }), snackController.remove);
+router.delete(
+  '/:id',
+  requireRole('admin'),
+  validate({ params: snackIdParamSchema }),
+  snackController.remove,
+);
 
-router.post('/:id/consume', validate({ params: snackIdParamSchema, body: amountSchema }), snackController.consume);
+router.post(
+  '/:id/consume',
+  validate({ params: snackIdParamSchema, body: amountSchema }),
+  snackController.consume,
+);
 router.post(
   '/:id/restock',
   requireRole('admin'),

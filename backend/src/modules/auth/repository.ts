@@ -34,4 +34,15 @@ export const userRepository = {
     );
     return result.rows[0];
   },
+
+  async create(
+    db: Queryable,
+    input: { name: string; email: string; passwordHash: string; role: Role },
+  ): Promise<SafeUserRow> {
+    const result = await db.query<SafeUserRow>(
+      'INSERT INTO users (name, email, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING id, name, email, role, created_at',
+      [input.name, input.email, input.passwordHash, input.role],
+    );
+    return result.rows[0] as SafeUserRow;
+  },
 };

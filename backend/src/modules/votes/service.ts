@@ -2,6 +2,7 @@ import { pool } from '../../db/pool';
 import { AppError } from '../../utils/errors';
 import { snackRepository } from '../snacks/repository';
 import { snackService } from '../snacks/service';
+import { emitSnackChanged } from '../../utils/events';
 import { voteRepository } from './repository';
 
 export const voteService = {
@@ -16,6 +17,7 @@ export const voteService = {
       throw new AppError('ALREADY_VOTED', 'You already voted for this snack');
     }
 
+    emitSnackChanged('voted', snackId);
     return snackService.getById(snackId, userId);
   },
 
@@ -24,5 +26,6 @@ export const voteService = {
     if (!removed) {
       throw new AppError('NOT_FOUND', 'Vote not found');
     }
+    emitSnackChanged('unvoted', snackId);
   },
 };

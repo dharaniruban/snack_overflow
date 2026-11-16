@@ -1,8 +1,15 @@
 import type { Request, Response } from 'express';
 import { asyncHandler } from '../../utils/asyncHandler';
+import { AppError } from '../../utils/errors';
 import { requireAuthUser } from '../../middleware/authUser';
 import { snackService } from './service';
-import type { amountSchema, createSnackSchema, listSnacksQuerySchema, snackIdParamSchema, updateSnackSchema } from './schemas';
+import type {
+  amountSchema,
+  createSnackSchema,
+  listSnacksQuerySchema,
+  snackIdParamSchema,
+  updateSnackSchema,
+} from './schemas';
 import type { z } from 'zod';
 
 type IdParams = z.infer<typeof snackIdParamSchema>;
@@ -54,7 +61,11 @@ export const snackController = {
     const user = requireAuthUser(req);
     const { id } = req.params as IdParams;
     const { amount } = req.body as AmountBody;
-    const snack = await snackService.consume(id, amount, user.id);
+    const idempotencyKey = req.get('Idempotency-Key');
+    if (idempotencyKey && idempotencyKey.length > 255) {
+      throw new AppError('VALIDATION_ERROR', 'Idempotency-Key is too long');
+    }
+    const snack = await snackService.consume(id, amount, user.id, idempotencyKey ?? undefined);
     res.status(200).json(snack);
   }),
 

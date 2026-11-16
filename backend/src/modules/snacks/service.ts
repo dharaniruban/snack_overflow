@@ -1,7 +1,9 @@
 import { pool, withTransaction } from '../../db/pool';
 import { AppError } from '../../utils/errors';
 import { isUniqueViolation } from '../../utils/pgErrors';
+import { emitSnackChanged } from '../../utils/events';
 import { activityRepository } from '../activity/repository';
+import { idempotencyRepository } from '../idempotency/repository';
 import type { z } from 'zod';
 import { snackRepository, type SnackBaseRow, type SnackRow } from './repository';
 import type { CreateSnackInput, SnackResponse, SnackStatus } from './types';
@@ -42,6 +44,8 @@ export const snackService = {
       page: query.page,
       pageSize: query.pageSize,
       userId,
+      sort: query.sort,
+      order: query.order,
     });
 
     return {
@@ -90,6 +94,7 @@ export const snackService = {
       duplicateNameError(error);
     }
 
+    emitSnackChanged('created', created.id);
     return snackService.getById(created.id, userId);
   },
 
@@ -108,6 +113,7 @@ export const snackService = {
     if (!updated) {
       throw new AppError('NOT_FOUND', 'Snack not found');
     }
+    emitSnackChanged('updated', id);
     return snackService.getById(id, userId);
   },
 
@@ -116,10 +122,34 @@ export const snackService = {
     if (!removed) {
       throw new AppError('NOT_FOUND', 'Snack not found');
     }
+    emitSnackChanged('deleted', id);
   },
 
-  async consume(id: string, amount: number, userId: string): Promise<SnackResponse> {
-    await withTransaction(async (client) => {
+  async consume(
+    id: string,
+    amount: number,
+    userId: string,
+    idempotencyKey?: string,
+  ): Promise<SnackResponse> {
+    const outcome = await withTransaction(async (client) => {
+      // Idempotent retry: return the stored response without touching stock again.
+      if (idempotencyKey) {
+        const existing = await idempotencyRepository.find(client, {
+          userId,
+          snackId: id,
+          key: idempotencyKey,
+        });
+        if (existing) {
+          if (existing.amount !== amount) {
+            throw new AppError(
+              'VALIDATION_ERROR',
+              'Idempotency-Key was reused with a different amount',
+            );
+          }
+          return { snack: existing.response as SnackResponse };
+        }
+      }
+
       const updated = await snackRepository.consume(client, id, amount);
       if (!updated) {
         const exists = await snackRepository.exists(client, id);
@@ -139,9 +169,31 @@ export const snackService = {
         quantityBefore: quantityAfter + amount,
         quantityAfter,
       });
+
+      // Read the full snack (with votes) inside the same transaction so the
+      // stored idempotent response matches what a fresh GET would return.
+      const full = await snackRepository.getById(client, id, userId);
+      if (!full) {
+        throw new AppError('NOT_FOUND', 'Snack not found');
+      }
+      const response = toSnackResponse(full);
+
+      if (idempotencyKey) {
+        await idempotencyRepository.insert(client, {
+          userId,
+          snackId: id,
+          key: idempotencyKey,
+          amount,
+          response,
+          statusCode: 200,
+        });
+      }
+
+      return { snack: response };
     });
 
-    return snackService.getById(id, userId);
+    emitSnackChanged('consumed', id);
+    return outcome.snack;
   },
 
   async restock(id: string, amount: number, userId: string): Promise<SnackResponse> {
@@ -163,6 +215,7 @@ export const snackService = {
       });
     });
 
+    emitSnackChanged('restocked', id);
     return snackService.getById(id, userId);
   },
 };

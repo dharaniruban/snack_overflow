@@ -18,7 +18,9 @@ const envSchema = z.object({
 const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
-  const issues = parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; ');
+  const issues = parsed.error.issues
+    .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+    .join('; ');
   // Fail fast: never boot with missing or invalid configuration.
   console.error(`Invalid environment configuration: ${issues}`);
   process.exit(1);

@@ -11,7 +11,11 @@ async function consume(snackId: string, token: string, amount: number) {
 describe('concurrency', () => {
   it('allows exactly the available stock to be consumed under parallel load', async () => {
     const member = await createUser({ email: 'member@example.com' });
-    const snackId = await createSnack({ name: 'Rationed Chips', quantity: 3, lowStockThreshold: 1 });
+    const snackId = await createSnack({
+      name: 'Rationed Chips',
+      quantity: 3,
+      lowStockThreshold: 1,
+    });
 
     const results = await Promise.all(
       Array.from({ length: 10 }, () => consume(snackId, member.token, 1)),

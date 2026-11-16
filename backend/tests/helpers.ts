@@ -62,13 +62,19 @@ export function authHeaders(token: string): { Authorization: string } {
 }
 
 export async function getSnackQuantity(snackId: string): Promise<number> {
-  const result = await pool.query<{ quantity: number }>('SELECT quantity FROM snacks WHERE id = $1', [snackId]);
+  const result = await pool.query<{ quantity: number }>(
+    'SELECT quantity FROM snacks WHERE id = $1',
+    [snackId],
+  );
   return (result.rows[0] as { quantity: number }).quantity;
 }
 
 export async function countRows(table: 'activity' | 'votes', snackId?: string): Promise<number> {
   const result = snackId
-    ? await pool.query<{ count: number }>(`SELECT COUNT(*)::int AS count FROM ${table} WHERE snack_id = $1`, [snackId])
+    ? await pool.query<{ count: number }>(
+        `SELECT COUNT(*)::int AS count FROM ${table} WHERE snack_id = $1`,
+        [snackId],
+      )
     : await pool.query<{ count: number }>(`SELECT COUNT(*)::int AS count FROM ${table}`);
   return (result.rows[0] as { count: number }).count;
 }

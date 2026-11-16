@@ -7,7 +7,12 @@ const DEMO_USERS = [
   { name: 'Member User', email: 'member@bpf.com', password: 'Member@123', role: 'member' as const },
 ];
 
-const SNACKS: Array<{ name: string; category: string; quantity: number; lowStockThreshold: number }> = [
+const SNACKS: Array<{
+  name: string;
+  category: string;
+  quantity: number;
+  lowStockThreshold: number;
+}> = [
   { name: 'Masala Peanuts', category: 'savoury', quantity: 1, lowStockThreshold: 5 },
   { name: 'Bengali Mixturen', category: 'sweet', quantity: 3, lowStockThreshold: 5 },
   { name: 'Chai Masala Latte', category: 'drink', quantity: 8, lowStockThreshold: 10 },
@@ -32,7 +37,10 @@ const SEED_VOTES: Array<{ userEmail: string; snackName: string }> = [
 ];
 
 async function ensureUser(pool: Pool, user: (typeof DEMO_USERS)[number]): Promise<string> {
-  const existing = await pool.query<{ id: string }>('SELECT id FROM users WHERE lower(email) = lower($1)', [user.email]);
+  const existing = await pool.query<{ id: string }>(
+    'SELECT id FROM users WHERE lower(email) = lower($1)',
+    [user.email],
+  );
   if (existing.rows[0]) {
     return existing.rows[0].id;
   }
@@ -44,11 +52,11 @@ async function ensureUser(pool: Pool, user: (typeof DEMO_USERS)[number]): Promis
   return inserted.rows[0].id;
 }
 
-async function ensureSnack(
-  pool: Pool,
-  snack: (typeof SNACKS)[number],
-): Promise<string> {
-  const existing = await pool.query<{ id: string }>('SELECT id FROM snacks WHERE lower(name) = lower($1)', [snack.name]);
+async function ensureSnack(pool: Pool, snack: (typeof SNACKS)[number]): Promise<string> {
+  const existing = await pool.query<{ id: string }>(
+    'SELECT id FROM snacks WHERE lower(name) = lower($1)',
+    [snack.name],
+  );
   if (existing.rows[0]) {
     return existing.rows[0].id;
   }
@@ -84,10 +92,10 @@ async function main() {
       const userId = userIds.get(vote.userEmail);
       const snackId = snackIds.get(vote.snackName);
       if (!userId || !snackId) continue;
-      await pool.query('INSERT INTO votes (user_id, snack_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [
-        userId,
-        snackId,
-      ]);
+      await pool.query(
+        'INSERT INTO votes (user_id, snack_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [userId, snackId],
+      );
     }
 
     console.log('Seed complete');

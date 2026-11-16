@@ -6,6 +6,12 @@ import { listActivityQuerySchema } from './schemas';
 
 const router = Router();
 
-router.get('/', requireAuth, requireRole('admin'), validate({ query: listActivityQuerySchema }), activityController.list);
+router.get(
+  '/',
+  requireAuth,
+  requireRole('admin'),
+  validate({ query: listActivityQuerySchema }),
+  activityController.list,
+);
 
 export default router;

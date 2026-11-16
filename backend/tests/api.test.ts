@@ -16,9 +16,16 @@ function expectError(
 
 describe('auth', () => {
   it('logs in and never exposes the password hash', async () => {
-    await createUser({ email: 'admin@example.com', name: 'Admin', role: 'admin', password: 'secret123' });
+    await createUser({
+      email: 'admin@example.com',
+      name: 'Admin',
+      role: 'admin',
+      password: 'secret123',
+    });
 
-    const res = await request(app).post('/auth/login').send({ email: 'admin@example.com', password: 'secret123' });
+    const res = await request(app)
+      .post('/auth/login')
+      .send({ email: 'admin@example.com', password: 'secret123' });
 
     expect(res.status).toBe(200);
     expect(res.body.token).toBeTruthy();
@@ -44,6 +51,45 @@ describe('auth', () => {
     expectError(wrongPassword, 401, 'UNAUTHENTICATED');
     expectError(unknownEmail, 401, 'UNAUTHENTICATED');
     expect(wrongPassword.body.error.message).toBe(unknownEmail.body.error.message);
+  });
+
+  it('registers new members without trusting a role from the body', async () => {
+    const created = await request(app).post('/auth/register').send({
+      name: 'New Member',
+      email: 'new@example.com',
+      password: 'password123',
+    });
+    expect(created.status).toBe(201);
+    expect(created.body.role).toBe('member');
+    expect(created.body.password_hash).toBeUndefined();
+
+    const duplicate = await request(app).post('/auth/register').send({
+      name: 'New Member',
+      email: 'new@example.com',
+      password: 'password123',
+    });
+    expectError(duplicate, 409, 'DUPLICATE_NAME');
+
+    const weak = await request(app).post('/auth/register').send({
+      name: 'Weak',
+      email: 'weak@example.com',
+      password: 'short',
+    });
+    expectError(weak, 400, 'VALIDATION_ERROR');
+
+    const roleAttempt = await request(app).post('/auth/register').send({
+      name: 'Sneaky',
+      email: 'sneaky@example.com',
+      password: 'password123',
+      role: 'admin',
+    });
+    expectError(roleAttempt, 400, 'VALIDATION_ERROR');
+
+    const login = await request(app)
+      .post('/auth/login')
+      .send({ email: 'new@example.com', password: 'password123' });
+    expect(login.status).toBe(200);
+    expect(login.body.user.role).toBe('member');
   });
 
   it('rejects requests without a token', async () => {
@@ -130,7 +176,9 @@ describe('snacks CRUD and validation', () => {
   it('returns the single error format for unknown routes and bad ids', async () => {
     const member = await createUser({ email: 'member@example.com' });
 
-    const unknownRoute = await request(app).get('/definitely-not-a-route').set(authHeaders(member.token));
+    const unknownRoute = await request(app)
+      .get('/definitely-not-a-route')
+      .set(authHeaders(member.token));
     expectError(unknownRoute, 404, 'NOT_FOUND');
 
     const badId = await request(app).get('/snacks/not-a-uuid').set(authHeaders(member.token));
@@ -142,10 +190,25 @@ describe('list, filters, search and pagination', () => {
   it('filters by status, category and search with a stable pagination envelope', async () => {
     const member = await createUser({ email: 'member@example.com' });
 
-    await createSnack({ name: 'Gone Chips', category: 'savoury', quantity: 0, lowStockThreshold: 5 });
+    await createSnack({
+      name: 'Gone Chips',
+      category: 'savoury',
+      quantity: 0,
+      lowStockThreshold: 5,
+    });
     await createSnack({ name: 'Last Oreo', category: 'sweet', quantity: 1, lowStockThreshold: 5 });
-    await createSnack({ name: 'At Limit Tea', category: 'drink', quantity: 5, lowStockThreshold: 5 });
-    await createSnack({ name: 'Stocked Coffee', category: 'drink', quantity: 9, lowStockThreshold: 5 });
+    await createSnack({
+      name: 'At Limit Tea',
+      category: 'drink',
+      quantity: 5,
+      lowStockThreshold: 5,
+    });
+    await createSnack({
+      name: 'Stocked Coffee',
+      category: 'drink',
+      quantity: 9,
+      lowStockThreshold: 5,
+    });
     await createSnack({ name: 'Alpha One', category: 'sweet', quantity: 10 });
     await createSnack({ name: 'Alpha Two', category: 'sweet', quantity: 10 });
     await createSnack({ name: 'Beta Three', category: 'sweet', quantity: 10 });
@@ -156,7 +219,9 @@ describe('list, filters, search and pagination', () => {
     expect(gone.body.data[0].name).toBe('Gone Chips');
     expect(gone.body.pagination.total).toBe(1);
 
-    const runningLow = await request(app).get('/snacks?status=running_low').set(authHeaders(member.token));
+    const runningLow = await request(app)
+      .get('/snacks?status=running_low')
+      .set(authHeaders(member.token));
     expect(runningLow.body.data.map((s: { name: string }) => s.name).sort()).toEqual([
       'At Limit Tea',
       'Last Oreo',
@@ -172,12 +237,46 @@ describe('list, filters, search and pagination', () => {
     const wildcard = await request(app).get('/snacks?q=%25').set(authHeaders(member.token));
     expect(wildcard.body.pagination.total).toBe(0);
 
-    const page1 = await request(app).get('/snacks?page=1&pageSize=2').set(authHeaders(member.token));
+    const page1 = await request(app)
+      .get('/snacks?page=1&pageSize=2')
+      .set(authHeaders(member.token));
     expect(page1.body.data).toHaveLength(2);
     expect(page1.body.pagination).toMatchObject({ page: 1, pageSize: 2, total: 7, totalPages: 4 });
 
-    const page4 = await request(app).get('/snacks?page=4&pageSize=2').set(authHeaders(member.token));
+    const page4 = await request(app)
+      .get('/snacks?page=4&pageSize=2')
+      .set(authHeaders(member.token));
     expect(page4.body.data).toHaveLength(1);
+  });
+
+  it('sorts server-side by allowlisted columns only', async () => {
+    const member = await createUser({ email: 'member@example.com' });
+
+    await createSnack({ name: 'Bravo Snack', quantity: 3 });
+    const alphaId = await createSnack({ name: 'Alpha Snack', quantity: 9 });
+    await createSnack({ name: 'Charlie Snack', quantity: 5 });
+    await request(app).post(`/snacks/${alphaId}/vote`).set(authHeaders(member.token));
+
+    const byName = await request(app)
+      .get('/snacks?sort=name&order=asc')
+      .set(authHeaders(member.token));
+    expect(byName.body.data[0].name).toBe('Alpha Snack');
+
+    const byQuantity = await request(app)
+      .get('/snacks?sort=quantity&order=desc')
+      .set(authHeaders(member.token));
+    expect(byQuantity.body.data[0].name).toBe('Alpha Snack');
+
+    const byVotes = await request(app)
+      .get('/snacks?sort=votes&order=desc')
+      .set(authHeaders(member.token));
+    expect(byVotes.body.data[0].name).toBe('Alpha Snack');
+    expect(byVotes.body.data[0].voteCount).toBe(1);
+
+    const injection = await request(app)
+      .get('/snacks?sort=name%3BDROP%20TABLE%20snacks')
+      .set(authHeaders(member.token));
+    expectError(injection, 400, 'VALIDATION_ERROR');
   });
 
   it('derives status at the exact boundaries', async () => {
@@ -216,12 +315,19 @@ describe('consume, restock and activity', () => {
     expect(consumed.status).toBe(200);
     expect(consumed.body.quantity).toBe(3);
 
-    const activity = await pool.query<{ action: string; quantity_before: number; quantity_after: number }>(
-      'SELECT action, quantity_before, quantity_after FROM activity WHERE snack_id = $1',
-      [snackId],
-    );
+    const activity = await pool.query<{
+      action: string;
+      quantity_before: number;
+      quantity_after: number;
+    }>('SELECT action, quantity_before, quantity_after FROM activity WHERE snack_id = $1', [
+      snackId,
+    ]);
     expect(activity.rows).toHaveLength(1);
-    expect(activity.rows[0]).toMatchObject({ action: 'consumed', quantity_before: 5, quantity_after: 3 });
+    expect(activity.rows[0]).toMatchObject({
+      action: 'consumed',
+      quantity_before: 5,
+      quantity_after: 3,
+    });
 
     const tooMuch = await request(app)
       .post(`/snacks/${snackId}/consume`)
@@ -260,15 +366,59 @@ describe('consume, restock and activity', () => {
     expect(await getSnackQuantity(snackId)).toBe(10);
   });
 
+  it('does not double-count consume retries that share an Idempotency-Key', async () => {
+    const member = await createUser({ email: 'member@example.com' });
+    const snackId = await createSnack({ name: 'Idempotent Nuts', quantity: 5 });
+
+    const first = await request(app)
+      .post(`/snacks/${snackId}/consume`)
+      .set(authHeaders(member.token))
+      .set('Idempotency-Key', 'retry-key-1')
+      .send({ amount: 2 });
+    expect(first.status).toBe(200);
+    expect(first.body.quantity).toBe(3);
+
+    const retry = await request(app)
+      .post(`/snacks/${snackId}/consume`)
+      .set(authHeaders(member.token))
+      .set('Idempotency-Key', 'retry-key-1')
+      .send({ amount: 2 });
+    expect(retry.status).toBe(200);
+    expect(retry.body.quantity).toBe(3);
+
+    expect(await getSnackQuantity(snackId)).toBe(3);
+    expect(await countRows('activity', snackId)).toBe(1);
+
+    const mismatched = await request(app)
+      .post(`/snacks/${snackId}/consume`)
+      .set(authHeaders(member.token))
+      .set('Idempotency-Key', 'retry-key-1')
+      .send({ amount: 3 });
+    expectError(mismatched, 400, 'VALIDATION_ERROR');
+
+    const fresh = await request(app)
+      .post(`/snacks/${snackId}/consume`)
+      .set(authHeaders(member.token))
+      .send({ amount: 1 });
+    expect(fresh.status).toBe(200);
+    expect(await getSnackQuantity(snackId)).toBe(2);
+  });
+
   it('never drives quantity below zero', async () => {
     const member = await createUser({ email: 'member@example.com' });
     const snackId = await createSnack({ name: 'Last One', quantity: 1 });
 
-    const ok = await request(app).post(`/snacks/${snackId}/consume`).set(authHeaders(member.token)).send({ amount: 1 });
+    const ok = await request(app)
+      .post(`/snacks/${snackId}/consume`)
+      .set(authHeaders(member.token))
+      .send({ amount: 1 });
     expect(ok.status).toBe(200);
     expect(ok.body.status).toBe('gone');
 
-    const fail = await request(app).post(`/snacks/${snackId}/consume`).set(authHeaders(member.token)).send({ amount: 1 });
+    const fail = await request(app)
+      .post(`/snacks/${snackId}/consume`)
+      .set(authHeaders(member.token))
+      .send({ amount: 1 });
     expectError(fail, 409, 'INSUFFICIENT_STOCK');
     expect(await getSnackQuantity(snackId)).toBe(0);
   });
@@ -285,18 +435,26 @@ describe('votes', () => {
     expect(voted.body.hasVoted).toBe(true);
     expect(voted.body.voteCount).toBe(1);
 
-    const duplicate = await request(app).post(`/snacks/${snackId}/vote`).set(authHeaders(member.token));
+    const duplicate = await request(app)
+      .post(`/snacks/${snackId}/vote`)
+      .set(authHeaders(member.token));
     expectError(duplicate, 409, 'ALREADY_VOTED');
 
-    const otherVote = await request(app).post(`/snacks/${snackId}/vote`).set(authHeaders(other.token));
+    const otherVote = await request(app)
+      .post(`/snacks/${snackId}/vote`)
+      .set(authHeaders(other.token));
     expect(otherVote.status).toBe(200);
     expect(otherVote.body.voteCount).toBe(2);
     expect(otherVote.body.hasVoted).toBe(true);
 
-    const unvoted = await request(app).delete(`/snacks/${snackId}/vote`).set(authHeaders(member.token));
+    const unvoted = await request(app)
+      .delete(`/snacks/${snackId}/vote`)
+      .set(authHeaders(member.token));
     expect(unvoted.status).toBe(204);
 
-    const again = await request(app).delete(`/snacks/${snackId}/vote`).set(authHeaders(member.token));
+    const again = await request(app)
+      .delete(`/snacks/${snackId}/vote`)
+      .set(authHeaders(member.token));
     expectError(again, 404, 'NOT_FOUND');
 
     const final = await request(app).get(`/snacks/${snackId}`).set(authHeaders(member.token));
@@ -310,7 +468,11 @@ describe('summary', () => {
     const admin = await createUser({ email: 'admin@example.com', role: 'admin' });
     const member = await createUser({ email: 'member@example.com' });
 
-    const stockedId = await createSnack({ name: 'Crowd Favorite', quantity: 10, lowStockThreshold: 2 });
+    const stockedId = await createSnack({
+      name: 'Crowd Favorite',
+      quantity: 10,
+      lowStockThreshold: 2,
+    });
     await createSnack({ name: 'Running Low Snack', quantity: 2, lowStockThreshold: 5 });
     await createSnack({ name: 'Gone Snack', quantity: 0, lowStockThreshold: 5 });
     await createSnack({ name: 'Other Snack', quantity: 10, lowStockThreshold: 2 });

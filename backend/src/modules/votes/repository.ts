@@ -6,7 +6,10 @@ interface VoteKey {
 }
 
 export const voteRepository = {
-  async add(db: Queryable, { userId, snackId }: VoteKey): Promise<{ snack_id: string } | undefined> {
+  async add(
+    db: Queryable,
+    { userId, snackId }: VoteKey,
+  ): Promise<{ snack_id: string } | undefined> {
     // The composite PRIMARY KEY (user_id, snack_id) is the real guard against
     // double voting; ON CONFLICT DO NOTHING keeps it race-safe without locks.
     const result = await db.query<{ snack_id: string }>(
@@ -16,7 +19,10 @@ export const voteRepository = {
     return result.rows[0];
   },
 
-  async remove(db: Queryable, { userId, snackId }: VoteKey): Promise<{ snack_id: string } | undefined> {
+  async remove(
+    db: Queryable,
+    { userId, snackId }: VoteKey,
+  ): Promise<{ snack_id: string } | undefined> {
     const result = await db.query<{ snack_id: string }>(
       'DELETE FROM votes WHERE user_id = $1 AND snack_id = $2 RETURNING snack_id',
       [userId, snackId],

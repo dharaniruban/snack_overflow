@@ -11,7 +11,9 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  await pool.query('TRUNCATE TABLE activity, votes, snacks, users RESTART IDENTITY CASCADE');
+  await pool.query(
+    'TRUNCATE TABLE activity, votes, snacks, users, idempotency_keys RESTART IDENTITY CASCADE',
+  );
 });
 
 afterAll(async () => {

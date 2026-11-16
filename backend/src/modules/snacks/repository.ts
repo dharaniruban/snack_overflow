@@ -25,6 +25,9 @@ export interface SnackBaseRow {
   updated_at: Date;
 }
 
+export type SnackSortField = 'name' | 'quantity' | 'votes' | 'createdAt';
+export type SortOrder = 'asc' | 'desc';
+
 export interface ListSnacksOptions {
   category?: SnackCategory;
   status?: SnackStatus;
@@ -32,6 +35,8 @@ export interface ListSnacksOptions {
   page: number;
   pageSize: number;
   userId: string;
+  sort?: SnackSortField;
+  order?: SortOrder;
 }
 
 export interface SummaryResult {
@@ -70,10 +75,34 @@ function listWhere(): string {
     AND ($3::text IS NULL OR s.name ILIKE '%' || $3 || '%' ESCAPE '\\')`;
 }
 
+// Sorting is allowlisted: user input chooses a key, never raw SQL text.
+const SORT_EXPRESSIONS: Record<SnackSortField, string> = {
+  name: 'lower(s.name)',
+  quantity: 's.quantity',
+  votes: 'vote_count',
+  createdAt: 's.created_at',
+};
+
+function orderByClause(options: ListSnacksOptions): string {
+  if (!options.sort) {
+    return 'ORDER BY s.created_at DESC';
+  }
+  const direction = options.order ?? (options.sort === 'name' ? 'asc' : 'desc');
+  const sqlDirection = direction === 'asc' ? 'ASC' : 'DESC';
+  return `ORDER BY ${SORT_EXPRESSIONS[options.sort]} ${sqlDirection}, s.created_at DESC`;
+}
+
 export const snackRepository = {
-  async listSnacks(db: Queryable, options: ListSnacksOptions): Promise<{ rows: SnackRow[]; total: number }> {
+  async listSnacks(
+    db: Queryable,
+    options: ListSnacksOptions,
+  ): Promise<{ rows: SnackRow[]; total: number }> {
     const where = listWhere();
-    const filterParams = [options.category ?? null, options.status ?? null, options.q ? escapeLike(options.q) : null];
+    const filterParams = [
+      options.category ?? null,
+      options.status ?? null,
+      options.q ? escapeLike(options.q) : null,
+    ];
 
     const countResult = await db.query<{ total: number }>(
       `SELECT COUNT(*)::int AS total FROM snacks s ${where}`,
@@ -81,7 +110,7 @@ export const snackRepository = {
     );
 
     const dataResult = await db.query<SnackRow>(
-      `${SELECT_SNACK} ${where} ORDER BY s.created_at DESC LIMIT $5 OFFSET $6`,
+      `${SELECT_SNACK} ${where} ${orderByClause(options)} LIMIT $5 OFFSET $6`,
       [...filterParams, options.userId, options.pageSize, (options.page - 1) * options.pageSize],
     );
 
@@ -125,7 +154,11 @@ export const snackRepository = {
     return result.rows[0] as SnackBaseRow;
   },
 
-  async update(db: Queryable, id: string, input: UpdateSnackInput): Promise<SnackBaseRow | undefined> {
+  async update(
+    db: Queryable,
+    id: string,
+    input: UpdateSnackInput,
+  ): Promise<SnackBaseRow | undefined> {
     const columnMap = {
       name: 'name',
       category: 'category',

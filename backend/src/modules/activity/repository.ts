@@ -29,7 +29,15 @@ export const activityRepository = {
     await db.query(
       `INSERT INTO activity (user_id, snack_id, snack_name, action, amount, quantity_before, quantity_after)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [input.userId, input.snackId, input.snackName, input.action, input.amount, input.quantityBefore, input.quantityAfter],
+      [
+        input.userId,
+        input.snackId,
+        input.snackName,
+        input.action,
+        input.amount,
+        input.quantityBefore,
+        input.quantityAfter,
+      ],
     );
   },
 
@@ -37,7 +45,9 @@ export const activityRepository = {
     db: Queryable,
     options: { page: number; pageSize: number },
   ): Promise<{ rows: ActivityRow[]; total: number }> {
-    const countResult = await db.query<{ total: number }>('SELECT COUNT(*)::int AS total FROM activity');
+    const countResult = await db.query<{ total: number }>(
+      'SELECT COUNT(*)::int AS total FROM activity',
+    );
     const dataResult = await db.query<ActivityRow>(
       `SELECT
         a.id,

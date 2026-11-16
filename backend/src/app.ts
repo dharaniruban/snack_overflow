@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import { corsOrigins } from './config/env';
 import authRoutes from './modules/auth/routes';
 import activityRoutes from './modules/activity/routes';
+import eventsRoutes from './modules/events/routes';
 import snackRoutes from './modules/snacks/routes';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 
@@ -29,6 +30,7 @@ export function createApp() {
   app.use('/auth', authRoutes);
   app.use('/snacks', snackRoutes);
   app.use('/activity', activityRoutes);
+  app.use('/events', eventsRoutes);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

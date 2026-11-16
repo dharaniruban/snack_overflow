@@ -24,7 +24,9 @@ export const updateSnackSchema = z
   })
   .strict();
 
-export const amountSchema = z.object({ amount: z.number().int().positive('Amount must be a positive integer') }).strict();
+export const amountSchema = z
+  .object({ amount: z.number().int().positive('Amount must be a positive integer') })
+  .strict();
 
 export const listSnacksQuerySchema = z
   .object({
@@ -33,5 +35,7 @@ export const listSnacksQuerySchema = z
     q: z.string().trim().max(100).optional(),
     page: z.coerce.number().int().min(1).default(1),
     pageSize: z.coerce.number().int().min(1).max(50).default(10),
+    sort: z.enum(['name', 'quantity', 'votes', 'createdAt']).optional(),
+    order: z.enum(['asc', 'desc']).optional(),
   })
   .strict();

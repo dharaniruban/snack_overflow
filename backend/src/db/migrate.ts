@@ -13,10 +13,15 @@ export async function runMigrations(connectionString: string): Promise<void> {
     `);
 
     const migrationsDir = path.join(__dirname, '..', '..', 'migrations');
-    const files = fs.readdirSync(migrationsDir).filter((file) => file.endsWith('.sql')).sort();
+    const files = fs
+      .readdirSync(migrationsDir)
+      .filter((file) => file.endsWith('.sql'))
+      .sort();
 
     for (const file of files) {
-      const applied = await pool.query('SELECT 1 FROM schema_migrations WHERE filename = $1', [file]);
+      const applied = await pool.query('SELECT 1 FROM schema_migrations WHERE filename = $1', [
+        file,
+      ]);
       if (applied.rowCount && applied.rowCount > 0) {
         continue;
       }

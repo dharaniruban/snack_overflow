@@ -6,3 +6,11 @@ export const loginSchema = z
     password: z.string().min(1, 'Password is required').max(200),
   })
   .strict();
+
+export const registerSchema = z
+  .object({
+    name: z.string().trim().min(1, 'Name is required').max(120),
+    email: z.string().email('A valid email is required'),
+    password: z.string().min(8, 'Password must be at least 8 characters').max(200),
+  })
+  .strict();

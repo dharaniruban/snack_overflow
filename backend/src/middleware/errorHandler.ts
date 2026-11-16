@@ -23,13 +23,23 @@ export function errorHandler(
   }
 
   // Malformed JSON bodies are client errors, not server errors.
-  if (error instanceof SyntaxError && 'status' in error && (error as { status?: number }).status === 400) {
+  if (
+    error instanceof SyntaxError &&
+    'status' in error &&
+    (error as { status?: number }).status === 400
+  ) {
     res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Malformed JSON body' } });
     return;
   }
 
-  if (typeof error === 'object' && error !== null && (error as { type?: string }).type === 'entity.too.large') {
-    res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Request body too large' } });
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { type?: string }).type === 'entity.too.large'
+  ) {
+    res
+      .status(400)
+      .json({ error: { code: 'VALIDATION_ERROR', message: 'Request body too large' } });
     return;
   }
 
