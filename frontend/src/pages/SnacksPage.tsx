@@ -6,6 +6,7 @@ import { useAuth } from '../lib/auth';
 import { friendlyError } from '../lib/errors';
 import type { Snack, SnackCategory, SnackListResponse, SnackStatus } from '../lib/types';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { useSnackEvents } from '../hooks/useSnackEvents';
 import { useToast } from '../components/Toast';
 import { SnackCard } from '../components/SnackCard';
 import { SnackCardSkeleton } from '../components/Skeleton';
@@ -94,6 +95,9 @@ export function SnacksPage() {
     void queryClient.invalidateQueries({ queryKey: ['snack-summary'] });
   };
 
+  // Live updates: any consume/restock/vote/CRUD event refetches server truth.
+  useSnackEvents(token, invalidate);
+
   const consumeMutation = useMutation({
     mutationFn: ({ id, amount }: { id: string; amount: number }) =>
       apiFetch<Snack>(`/snacks/${id}/consume`, { method: 'POST', body: { amount }, token }),
@@ -122,13 +126,39 @@ export function SnacksPage() {
     onSettled: () => setRestockTarget(null),
   });
 
-  const voteMutation = useMutation<Snack | undefined, Error, { snack: Snack; action: 'vote' | 'unvote' }>({
+  const voteMutation = useMutation<
+    Snack | undefined,
+    Error,
+    { snack: Snack; action: 'vote' | 'unvote' },
+    { previous: SnackListResponse | undefined }
+  >({
     mutationFn: async ({ snack, action }) => {
       if (action === 'vote') {
         return apiFetch<Snack>(`/snacks/${snack.id}/vote`, { method: 'POST', token });
       }
       await apiFetch<void>(`/snacks/${snack.id}/vote`, { method: 'DELETE', token });
       return snack;
+    },
+    // Optimistic vote: flip hasVoted/voteCount in the cache immediately and
+    // roll back to the snapshot if the server rejects the change.
+    onMutate: async ({ snack, action }) => {
+      await queryClient.cancelQueries({ queryKey: ['snacks', queryString] });
+      const previous = queryClient.getQueryData<SnackListResponse>(['snacks', queryString]);
+      if (previous) {
+        queryClient.setQueryData<SnackListResponse>(['snacks', queryString], {
+          ...previous,
+          data: previous.data.map((item) =>
+            item.id === snack.id
+              ? {
+                  ...item,
+                  hasVoted: action === 'vote',
+                  voteCount: Math.max(0, item.voteCount + (action === 'vote' ? 1 : -1)),
+                }
+              : item,
+          ),
+        });
+      }
+      return { previous };
     },
     onSuccess: (_data, variables) => {
       if (variables.action === 'vote') {
@@ -138,18 +168,29 @@ export function SnacksPage() {
       } else {
         push('info', 'Vote removed. No hard feelings.');
       }
-      invalidate();
     },
-    onError: (error) => {
+    onError: (error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['snacks', queryString], context.previous);
+      }
       push('error', friendlyError(error));
-      invalidate();
     },
+    onSettled: invalidate,
   });
 
   const saveMutation = useMutation({
-    mutationFn: (values: { name: string; category: SnackCategory; quantity: number; lowStockThreshold: number }) => {
+    mutationFn: (values: {
+      name: string;
+      category: SnackCategory;
+      quantity: number;
+      lowStockThreshold: number;
+    }) => {
       if (editingSnack) {
-        return apiFetch<Snack>(`/snacks/${editingSnack.id}`, { method: 'PATCH', body: values, token });
+        return apiFetch<Snack>(`/snacks/${editingSnack.id}`, {
+          method: 'PATCH',
+          body: values,
+          token,
+        });
       }
       return apiFetch<Snack>('/snacks', { method: 'POST', body: values, token });
     },
@@ -217,7 +258,9 @@ export function SnacksPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Pantry snacks</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Vote, consume, and keep the office fed.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Vote, consume, and keep the office fed.
+          </p>
         </div>
         {isAdmin && (
           <button
@@ -295,9 +338,13 @@ export function SnacksPage() {
         </div>
       ) : snacks.length === 0 ? (
         <div className="rounded-xl border border-dashed border-slate-300 p-10 text-center dark:border-slate-700">
-          <div className="text-5xl" aria-hidden="true">🍪</div>
+          <div className="text-5xl" aria-hidden="true">
+            🍪
+          </div>
           <p className="mt-3 font-medium text-slate-700 dark:text-slate-200">
-            {hasFilters ? 'No snacks match those filters.' : 'The pantry is bare. Someone call the biscuit fairy.'}
+            {hasFilters
+              ? 'No snacks match those filters.'
+              : 'The pantry is bare. Someone call the biscuit fairy.'}
           </p>
           {hasFilters && (
             <button
@@ -320,7 +367,9 @@ export function SnacksPage() {
               showConfetti={confettiSnackId === snack.id}
               onConsume={setConsumeTarget}
               onRestock={setRestockTarget}
-              onVote={(target) => voteMutation.mutate({ snack: target, action: target.hasVoted ? 'unvote' : 'vote' })}
+              onVote={(target) =>
+                voteMutation.mutate({ snack: target, action: target.hasVoted ? 'unvote' : 'vote' })
+              }
               onEdit={(target) => {
                 setEditingSnack(target);
                 setFormOpen(true);
@@ -332,7 +381,10 @@ export function SnacksPage() {
       )}
 
       {pagination && pagination.totalPages > 1 && (
-        <nav className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900" aria-label="Pagination">
+        <nav
+          className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900"
+          aria-label="Pagination"
+        >
           <p className="text-sm text-slate-500 dark:text-slate-400">
             Page {pagination.page} of {pagination.totalPages} · {pagination.total} snacks
           </p>
@@ -360,7 +412,9 @@ export function SnacksPage() {
       <AmountDialog
         open={consumeTarget !== null}
         onClose={() => setConsumeTarget(null)}
-        onConfirm={(amount) => consumeTarget && consumeMutation.mutate({ id: consumeTarget.id, amount })}
+        onConfirm={(amount) =>
+          consumeTarget && consumeMutation.mutate({ id: consumeTarget.id, amount })
+        }
         loading={consumeMutation.isPending}
         mode="consume"
         snackName={consumeTarget?.name ?? ''}
@@ -368,7 +422,9 @@ export function SnacksPage() {
       <AmountDialog
         open={restockTarget !== null}
         onClose={() => setRestockTarget(null)}
-        onConfirm={(amount) => restockTarget && restockMutation.mutate({ id: restockTarget.id, amount })}
+        onConfirm={(amount) =>
+          restockTarget && restockMutation.mutate({ id: restockTarget.id, amount })
+        }
         loading={restockMutation.isPending}
         mode="restock"
         snackName={restockTarget?.name ?? ''}

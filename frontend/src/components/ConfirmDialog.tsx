@@ -9,7 +9,14 @@ interface ConfirmDialogProps {
   message: string;
 }
 
-export function ConfirmDialog({ open, onClose, onConfirm, loading = false, title, message }: ConfirmDialogProps) {
+export function ConfirmDialog({
+  open,
+  onClose,
+  onConfirm,
+  loading = false,
+  title,
+  message,
+}: ConfirmDialogProps) {
   return (
     <Modal open={open} onClose={onClose} title={title}>
       <p className="mb-5 text-sm text-slate-600 dark:text-slate-300">{message}</p>

@@ -46,12 +46,12 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
   }
 
   const payload = (await response.json().catch(() => null)) as
-    | { error?: { code?: string; message?: string; details?: unknown } }
-    | T
-    | null;
+    { error?: { code?: string; message?: string; details?: unknown } } | T | null;
 
   if (!response.ok) {
-    const apiError = (payload as { error?: { code?: string; message?: string; details?: unknown } } | null)?.error;
+    const apiError = (
+      payload as { error?: { code?: string; message?: string; details?: unknown } } | null
+    )?.error;
     if (response.status === 401 && hasStoredSession()) {
       window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
     }

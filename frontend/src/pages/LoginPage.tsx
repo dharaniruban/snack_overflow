@@ -43,8 +43,12 @@ export function LoginPage() {
           <div className="text-4xl" aria-hidden="true">
             🥜
           </div>
-          <h1 className="mt-2 text-xl font-bold text-slate-900 dark:text-slate-100">Snack Overflow</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Office pantry, minus the politics.</p>
+          <h1 className="mt-2 text-xl font-bold text-slate-900 dark:text-slate-100">
+            Snack Overflow
+          </h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Office pantry, minus the politics.
+          </p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">

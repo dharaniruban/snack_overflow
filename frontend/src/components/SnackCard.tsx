@@ -45,14 +45,19 @@ export function SnackCard({
 
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">{snack.name}</h3>
+          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+            {snack.name}
+          </h3>
           <div className="mt-1 flex flex-wrap gap-1.5">
             <CategoryBadge category={snack.category} />
             <StatusBadge status={snack.status} />
           </div>
         </div>
         <div className="text-right">
-          <p className="text-2xl font-bold text-slate-900 dark:text-slate-100" aria-label={`${snack.quantity} in stock`}>
+          <p
+            className="text-2xl font-bold text-slate-900 dark:text-slate-100"
+            aria-label={`${snack.quantity} in stock`}
+          >
             {snack.quantity}
           </p>
           <p className="text-xs text-slate-500 dark:text-slate-400">in stock</p>
@@ -60,7 +65,11 @@ export function SnackCard({
       </div>
 
       <div className="mt-3">
-        <FuelGauge quantity={snack.quantity} lowStockThreshold={snack.lowStockThreshold} status={snack.status} />
+        <FuelGauge
+          quantity={snack.quantity}
+          lowStockThreshold={snack.lowStockThreshold}
+          status={snack.status}
+        />
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
           Low-stock threshold: {snack.lowStockThreshold}
         </p>

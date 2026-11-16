@@ -10,7 +10,14 @@ interface AmountDialogProps {
   snackName: string;
 }
 
-export function AmountDialog({ open, onClose, onConfirm, loading = false, mode, snackName }: AmountDialogProps) {
+export function AmountDialog({
+  open,
+  onClose,
+  onConfirm,
+  loading = false,
+  mode,
+  snackName,
+}: AmountDialogProps) {
   const [amount, setAmount] = useState(1);
 
   const title = mode === 'consume' ? 'Consume snack' : 'Restock snack';
@@ -32,7 +39,10 @@ export function AmountDialog({ open, onClose, onConfirm, loading = false, mode, 
         >
           −
         </button>
-        <span className="w-12 text-center text-2xl font-bold text-slate-900 dark:text-slate-100" aria-live="polite">
+        <span
+          className="w-12 text-center text-2xl font-bold text-slate-900 dark:text-slate-100"
+          aria-live="polite"
+        >
           {amount}
         </span>
         <button

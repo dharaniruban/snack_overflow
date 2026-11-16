@@ -13,7 +13,11 @@ export function FuelGauge({ quantity, lowStockThreshold, status }: FuelGaugeProp
         : Math.min(100, Math.round((quantity / lowStockThreshold) * 100));
 
   const barColor =
-    status === 'gone' ? 'bg-rose-500' : status === 'running_low' ? 'bg-amber-500' : 'bg-emerald-500';
+    status === 'gone'
+      ? 'bg-rose-500'
+      : status === 'running_low'
+        ? 'bg-amber-500'
+        : 'bg-emerald-500';
 
   return (
     <div
@@ -21,7 +25,10 @@ export function FuelGauge({ quantity, lowStockThreshold, status }: FuelGaugeProp
       role="img"
       aria-label={`Stock level ${percent}%`}
     >
-      <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${percent}%` }} />
+      <div
+        className={`h-full rounded-full transition-all ${barColor}`}
+        style={{ width: `${percent}%` }}
+      />
     </div>
   );
 }

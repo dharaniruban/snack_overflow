@@ -13,7 +13,8 @@ export function ActivityPage() {
 
   const query = useQuery({
     queryKey: ['activity', page],
-    queryFn: () => apiFetch<ActivityListResponse>(`/activity?page=${page}&pageSize=${PAGE_SIZE}`, { token }),
+    queryFn: () =>
+      apiFetch<ActivityListResponse>(`/activity?page=${page}&pageSize=${PAGE_SIZE}`, { token }),
     enabled: Boolean(token) && isAdmin,
     placeholderData: keepPreviousData,
   });
@@ -22,7 +23,9 @@ export function ActivityPage() {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-8 text-center dark:border-slate-800 dark:bg-slate-900">
         <p className="font-medium text-slate-700 dark:text-slate-200">Admins only</p>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">The activity log is a VIP lounge.</p>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          The activity log is a VIP lounge.
+        </p>
       </div>
     );
   }
@@ -34,13 +37,18 @@ export function ActivityPage() {
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Pantry activity</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400">Who ate what, and when the cupboard was refilled.</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Who ate what, and when the cupboard was refilled.
+        </p>
       </div>
 
       {query.isLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 8 }).map((_, index) => (
-            <div key={index} className="h-14 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-800" />
+            <div
+              key={index}
+              className="h-14 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-800"
+            />
           ))}
         </div>
       ) : query.isError ? (
@@ -57,7 +65,9 @@ export function ActivityPage() {
       ) : items.length === 0 ? (
         <div className="rounded-xl border border-dashed border-slate-300 p-10 text-center dark:border-slate-700">
           <p className="font-medium text-slate-700 dark:text-slate-200">No activity yet</p>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Consume or restock a snack to start the log.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Consume or restock a snack to start the log.
+          </p>
         </div>
       ) : (
         <>
@@ -79,8 +89,12 @@ export function ActivityPage() {
                     <td className="whitespace-nowrap px-4 py-3 text-slate-600 dark:text-slate-300">
                       {new Date(item.createdAt).toLocaleString()}
                     </td>
-                    <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{item.userName}</td>
-                    <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{item.snackName}</td>
+                    <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
+                      {item.userName}
+                    </td>
+                    <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">
+                      {item.snackName}
+                    </td>
                     <td className="px-4 py-3">
                       <span
                         className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
@@ -103,7 +117,10 @@ export function ActivityPage() {
           </div>
 
           {pagination && pagination.totalPages > 1 && (
-            <nav className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900" aria-label="Pagination">
+            <nav
+              className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900"
+              aria-label="Pagination"
+            >
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 Page {pagination.page} of {pagination.totalPages}
               </p>

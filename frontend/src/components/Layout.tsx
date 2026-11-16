@@ -35,7 +35,9 @@ export function Layout() {
           </nav>
           <div className="flex items-center gap-2">
             <DarkModeToggle />
-            <span className="hidden text-sm text-slate-500 dark:text-slate-400 sm:inline">{user?.name}</span>
+            <span className="hidden text-sm text-slate-500 dark:text-slate-400 sm:inline">
+              {user?.name}
+            </span>
             <button
               type="button"
               onClick={logout}

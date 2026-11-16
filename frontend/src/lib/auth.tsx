@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   UNAUTHORIZED_EVENT,
@@ -65,16 +73,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener(UNAUTHORIZED_EVENT, handler);
   }, [navigate, reset]);
 
-  const login = useCallback(
-    async (email: string, password: string) => {
-      const result = await loginRequest(email, password);
-      storeSession(result.token, result.user);
-      setToken(result.token);
-      setUser(result.user);
-      return result.user;
-    },
-    [],
-  );
+  const login = useCallback(async (email: string, password: string) => {
+    const result = await loginRequest(email, password);
+    storeSession(result.token, result.user);
+    setToken(result.token);
+    setUser(result.user);
+    return result.user;
+  }, []);
 
   const logout = useCallback(() => {
     reset();

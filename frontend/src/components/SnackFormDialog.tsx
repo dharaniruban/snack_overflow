@@ -17,7 +17,13 @@ interface SnackFormDialogProps {
 
 const CATEGORIES: SnackCategory[] = ['sweet', 'savoury', 'drink', 'healthy-ish'];
 
-export function SnackFormDialog({ open, onClose, onSubmit, loading = false, snack }: SnackFormDialogProps) {
+export function SnackFormDialog({
+  open,
+  onClose,
+  onSubmit,
+  loading = false,
+  snack,
+}: SnackFormDialogProps) {
   const [name, setName] = useState('');
   const [category, setCategory] = useState<SnackCategory>('sweet');
   const [quantity, setQuantity] = useState(0);
@@ -76,7 +82,9 @@ export function SnackFormDialog({ open, onClose, onSubmit, loading = false, snac
               min={0}
               step={1}
               value={quantity}
-              onChange={(event) => setQuantity(Math.max(0, Math.floor(Number(event.target.value) || 0)))}
+              onChange={(event) =>
+                setQuantity(Math.max(0, Math.floor(Number(event.target.value) || 0)))
+              }
             />
           </label>
           <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">
@@ -87,7 +95,9 @@ export function SnackFormDialog({ open, onClose, onSubmit, loading = false, snac
               min={0}
               step={1}
               value={threshold}
-              onChange={(event) => setThreshold(Math.max(0, Math.floor(Number(event.target.value) || 0)))}
+              onChange={(event) =>
+                setThreshold(Math.max(0, Math.floor(Number(event.target.value) || 0)))
+              }
             />
           </label>
         </div>
