@@ -13,7 +13,7 @@ export function Layout() {
   const { user, isAdmin, logout } = useAuth();
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 dark:text-slate-100">
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
           <NavLink to="/" className="flex items-center gap-2 text-lg font-bold">
@@ -48,7 +48,9 @@ export function Layout() {
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-6">{<Outlet />}</main>
+      <main className="mx-auto max-w-6xl px-4 py-6">
+        <Outlet />
+      </main>
     </div>
   );
 }

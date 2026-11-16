@@ -1,17 +1,18 @@
 export function SnackCardSkeleton() {
   return (
-    <div className="animate-pulse rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-      <div className="flex items-start justify-between gap-2">
-        <div className="space-y-2">
-          <div className="h-4 w-32 rounded bg-slate-200 dark:bg-slate-700" />
-          <div className="h-5 w-40 rounded-full bg-slate-200 dark:bg-slate-700" />
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+      <div className="skeleton-shimmer h-28 w-full" />
+      <div className="space-y-3 p-4">
+        <div className="flex items-start justify-between gap-2">
+          <div className="skeleton-shimmer h-4 w-32 rounded" />
+          <div className="skeleton-shimmer h-7 w-10 rounded" />
         </div>
-        <div className="h-8 w-10 rounded bg-slate-200 dark:bg-slate-700" />
-      </div>
-      <div className="mt-4 h-2 w-full rounded-full bg-slate-200 dark:bg-slate-700" />
-      <div className="mt-4 flex gap-2">
-        <div className="h-8 w-20 rounded-lg bg-slate-200 dark:bg-slate-700" />
-        <div className="h-8 w-20 rounded-lg bg-slate-200 dark:bg-slate-700" />
+        <div className="skeleton-shimmer h-5 w-24 rounded-full" />
+        <div className="skeleton-shimmer h-2 w-full rounded-full" />
+        <div className="flex gap-2 pt-1">
+          <div className="skeleton-shimmer h-8 w-20 rounded-lg" />
+          <div className="skeleton-shimmer h-8 w-20 rounded-lg" />
+        </div>
       </div>
     </div>
   );

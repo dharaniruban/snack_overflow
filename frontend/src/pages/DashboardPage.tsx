@@ -4,6 +4,7 @@ import { useSnackEvents } from '../hooks/useSnackEvents';
 import { apiFetch } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { friendlyError } from '../lib/errors';
+import { snackEmoji } from '../lib/snackVisual';
 import type { SummaryResponse } from '../lib/types';
 import { StatusBadge } from '../components/StatusBadge';
 
@@ -96,20 +97,23 @@ export function DashboardPage() {
         <SummaryCard
           label="Stocked"
           value={counts.stocked}
-          classes="border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30"
-          valueClass="text-emerald-700 dark:text-emerald-300"
+          emoji="📦"
+          classes="border-emerald-200 bg-gradient-to-br from-emerald-50 to-white dark:border-emerald-900 dark:from-emerald-950/40 dark:to-slate-900"
+          valueClass="text-emerald-600 dark:text-emerald-300"
         />
         <SummaryCard
           label="Running low"
           value={counts.runningLow}
-          classes="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30"
-          valueClass="text-amber-700 dark:text-amber-300"
+          emoji="⚠️"
+          classes="border-amber-200 bg-gradient-to-br from-amber-50 to-white dark:border-amber-900 dark:from-amber-950/40 dark:to-slate-900"
+          valueClass="text-amber-600 dark:text-amber-300"
         />
         <SummaryCard
           label="Gone"
           value={counts.gone}
-          classes="border-rose-200 bg-rose-50 dark:border-rose-900 dark:bg-rose-950/30"
-          valueClass="text-rose-700 dark:text-rose-300"
+          emoji="🪫"
+          classes="border-rose-200 bg-gradient-to-br from-rose-50 to-white dark:border-rose-900 dark:from-rose-950/40 dark:to-slate-900"
+          valueClass="text-rose-600 dark:text-rose-300"
         />
       </section>
 
@@ -121,12 +125,19 @@ export function DashboardPage() {
           <div className="absolute -right-4 -top-4 text-7xl opacity-20" aria-hidden="true">
             👑
           </div>
-          <p className="text-xs font-bold uppercase tracking-widest text-brand-600 dark:text-brand-300">
-            Snack of the Week
-          </p>
-          <h2 className="mt-2 text-2xl font-bold text-slate-900 dark:text-slate-100">
-            {snackOfWeek.name}
-          </h2>
+          <div className="flex items-center gap-4">
+            <span className="animate-float text-6xl" aria-hidden="true">
+              {snackEmoji(snackOfWeek)}
+            </span>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest text-brand-600 dark:text-brand-300">
+                Snack of the Week
+              </p>
+              <h2 className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">
+                {snackOfWeek.name}
+              </h2>
+            </div>
+          </div>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
             {snackOfWeek.voteCount} vote{snackOfWeek.voteCount === 1 ? '' : 's'} and climbing — the
             office has spoken.
@@ -158,17 +169,26 @@ export function DashboardPage() {
 function SummaryCard({
   label,
   value,
+  emoji,
   classes,
   valueClass,
 }: {
   label: string;
   value: number;
+  emoji: string;
   classes: string;
   valueClass: string;
 }) {
   return (
-    <div className={`rounded-xl border p-4 ${classes}`}>
-      <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{label}</p>
+    <div
+      className={`rounded-2xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${classes}`}
+    >
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{label}</p>
+        <span className="text-xl" aria-hidden="true">
+          {emoji}
+        </span>
+      </div>
       <p className={`mt-1 text-3xl font-bold ${valueClass}`}>{value}</p>
     </div>
   );

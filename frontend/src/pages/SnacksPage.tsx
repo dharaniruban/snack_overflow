@@ -358,9 +358,10 @@ export function SnacksPage() {
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {snacks.map((snack) => (
+          {snacks.map((snack, index) => (
             <SnackCard
               key={snack.id}
+              index={index}
               snack={snack}
               isAdmin={isAdmin}
               disabled={busy}

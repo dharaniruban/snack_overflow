@@ -34,7 +34,7 @@ export function LoginPage() {
     'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100';
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 dark:bg-slate-950">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-50 via-slate-50 to-amber-50 px-4 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
       <div className="absolute right-4 top-4">
         <DarkModeToggle />
       </div>
