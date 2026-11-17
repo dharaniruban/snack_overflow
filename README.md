@@ -44,9 +44,9 @@ primary design goals — not just features.
 - **Realtime** — Server-Sent Events push every stock/vote change to all clients.
 - **Role-aware UI** — members never see admin controls in the DOM; admins get
   add/edit/delete/restock plus the activity page.
-- **Offline preview mode** — with no session token, the UI runs a self-contained
-  demo pantry in `localStorage` (guest preview only; logged-in users always talk
-  to the real API and see real errors).
+- **Optional snack images** — snacks accept an `imageUrl`; snacks saved
+  without one show a neutral empty state while pre-existing snacks keep their
+  auto-assigned placeholder images.
 
 ## Tech stack
 
@@ -111,8 +111,7 @@ body validation so members get 403 (not 400) on admin routes.
 
 | Area | Responsibility |
 | ---- | -------------- |
-| `lib/api.ts` | Typed fetch client: attaches Bearer token, parses the error envelope, dispatches `unauthorized`/`forbidden` window events, generates `Idempotency-Key`s. Guest (no token) calls fall back to the local demo pantry |
-| `lib/pantryStore.ts` | localStorage-backed demo pantry for the unauthenticated preview mode |
+| `lib/api.ts` | Typed fetch client: attaches Bearer token, parses the error envelope, dispatches `unauthorized`/`forbidden` window events, generates `Idempotency-Key`s |
 | `context/AuthContext.tsx` | Session state; restores `/auth/me` on reload; clears session on 401; refreshes role on 403 |
 | `context/ToastContext.tsx` | Toast notifications (success/error/warning/info, `aria-live`) |
 | `context/ThemeContext.tsx` | Dark/light theme, persisted |
@@ -120,8 +119,8 @@ body validation so members get 403 (not 400) on admin routes.
 | `hooks/useSnackMutations.ts` | consume/restock/vote/CRUD mutations with optimistic vote updates and rollback on error |
 | `hooks/useSnackEvents.ts` | Opens the SSE stream and invalidates queries on `snack` events |
 | `hooks/useDebounce.ts` | 260ms debounced search input |
-| `components/` | `AppLayout` (nav, role badge, theme toggle), `PantryMenuSection` (filters/search/sort/pagination + modals), `SnackCard`/`SnackTable` (two view modes), `SnackStatusBadge` (icon + label, not color alone), `StockFuelGauge`, `SnackModals` (create/edit/restock/delete-with-confirm) |
-| `pages/` | `DashboardPage` (stock health + Snack of the Week), `SnacksPage` (**all filters live in the URL** — shareable/reload-safe), `ActivityPage` (admin), `LoginPage` (sign in / register / guest preview roles) |
+| `components/` | `AppLayout` (nav, role badge, theme toggle), `PantryMenuSection` (filters/search/sort/pagination + modals), `SnackCard`/`SnackTable` (two view modes), `SnackStatusBadge` (icon + label, not color alone), `StockFuelGauge`, `SnackModals` (create/edit with optional image URL/restock/delete-with-confirm) |
+| `pages/` | `DashboardPage` (hero + pantry health summary), `SnacksPage` (full menu — **all filters live in the URL**, shareable/reload-safe), `AccountPage` (profile + demo switch-account), `ActivityPage` (admin), `LoginPage` (email/password sign-in with validation and mapped error states) |
 | `App.tsx` | Route guards: `RequireAuth`, `GuestOnly`, `RequireAdmin` |
 
 URL-synced filters (`?q=…&category=…&status=…&sort=…&page=…`) mean filtered views
@@ -178,6 +177,10 @@ npm run dev                    # http://localhost:5173
 
 Seeded via `backend/scripts/seed.ts` (idempotent). Anyone can self-register via
 `POST /auth/register` — always created as `member`.
+
+When `VITE_SHOW_DEMO_LOGIN=true`, the login page shows **Demo: Admin** /
+**Demo: Member** buttons and the account page offers switch-account shortcuts —
+both go through the normal `/auth/login` flow (never a bypass).
 
 ## Environment variables
 
@@ -263,7 +266,7 @@ curl localhost:4000/snacks/$ID -H "Authorization: Bearer $TOKEN"
 # Create (admin) -> 201
 curl -X POST localhost:4000/snacks -H "Authorization: Bearer $ADMIN" \
   -H 'Content-Type: application/json' \
-  -d '{"name":"Bhelpuri","category":"savoury","quantity":12,"lowStockThreshold":4}'
+  -d '{"name":"Bhelpuri","category":"savoury","quantity":12,"lowStockThreshold":4,"imageUrl":"https://example.com/bhelpuri.png"}'
 
 # Partial update (admin); empty body -> 400
 curl -X PATCH localhost:4000/snacks/$ID -H "Authorization: Bearer $ADMIN" \
@@ -287,6 +290,9 @@ curl -X DELETE localhost:4000/snacks/$ID/vote -H "Authorization: Bearer $TOKEN" 
 ```
 
 Categories: `sweet` | `savoury` | `drink` | `healthy-ish`.
+`imageUrl` is optional on create/update — an http(s) URL, `''` stores an
+explicit "no image" (empty state), and omitting it keeps the current value
+(`null` resets to the default placeholder).
 Stock integers are capped at 1e9 so `quantity + amount` can never overflow the
 `INTEGER` columns.
 
@@ -414,9 +420,6 @@ all open tabs converge to the true quantity — this is also what makes the
   `INSUFFICIENT_STOCK` message.
 - **Accessibility** — labelled inputs, `aria-live` toast region, focus-visible
   rings, `prefers-reduced-motion` respected.
-- **Guest preview** — with no token, all API calls route to `localPantryStore`
-  (localStorage) so the UI is explorable offline; the moment a session exists,
-  real API errors surface normally.
 
 ## Running the tests
 
@@ -439,6 +442,19 @@ full RBAC matrix plus a router-stack default-deny walk, validation edge cases
 atomic consume+activity, restock, idempotent retries, votes, summary, sort
 allowlist, and the concurrency cases (parallel consumes of equal/varied amounts,
 parallel votes).
+
+### Frontend
+
+```bash
+cd frontend
+npm test        # Vitest + React Testing Library (jsdom, API client mocked)
+npm run lint    # tsc --noEmit
+```
+
+The login page suite covers rendering, client/server validation, success +
+redirects (dashboard and original route), 401/429/network error states,
+double-submit guarding, the password toggle, authenticated redirect, and the
+`VITE_SHOW_DEMO_LOGIN` demo buttons.
 
 ## Design note — trade-offs and what breaks at 100x
 
