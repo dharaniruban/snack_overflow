@@ -144,28 +144,17 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   return payload as T;
 }
 
-function isBackendUnavailable(error: unknown): boolean {
-  return (
-    error instanceof ApiError &&
-    (error.code === 'BACKEND_UNREACHABLE' || error.code === 'NETWORK_ERROR')
-  );
-}
-
 async function withPantryFallback<T>(
   liveCall: () => Promise<T>,
   fallbackCall: () => T
 ): Promise<T> {
+  // The local pantry is a guest preview only. Once a session token exists,
+  // errors must surface so the UI can show its error/retry states instead of
+  // silently diverging from the server.
   if (!getStoredToken()) {
     return fallbackCall();
   }
-  try {
-    return await liveCall();
-  } catch (err) {
-    if (isBackendUnavailable(err)) {
-      return fallbackCall();
-    }
-    throw err;
-  }
+  return liveCall();
 }
 
 function buildQueryString(params: Record<string, string | number | undefined>): string {
