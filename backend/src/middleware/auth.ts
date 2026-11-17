@@ -44,14 +44,14 @@ export const requireAuth = asyncHandler(
   },
 );
 
-export function requireRole(role: Role) {
+export function requireRole(...roles: Role[]) {
   return (req: Request, _res: Response, next: NextFunction): void => {
     if (!req.user) {
       next(new AppError('UNAUTHENTICATED', 'Authentication required'));
       return;
     }
-    if (req.user.role !== role) {
-      next(new AppError('FORBIDDEN', 'Admin access required'));
+    if (!roles.includes(req.user.role)) {
+      next(new AppError('FORBIDDEN', "You don't have permission to do that."));
       return;
     }
     next();

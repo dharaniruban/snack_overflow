@@ -1,42 +1,25 @@
-import { Router, type Request } from 'express';
-import jwt from 'jsonwebtoken';
-import { env } from '../../config/env';
-import { pool } from '../../db/pool';
+import { Router, type NextFunction, type Request, type Response } from 'express';
+import { requireAuth } from '../../middleware/auth';
 import { snackEvents, type SnackChangedEvent } from '../../utils/events';
-import { userRepository } from '../auth/repository';
 
 const router = Router();
 
-function bearerToken(req: Request): string | null {
-  const header = req.headers.authorization;
-  if (header?.startsWith('Bearer ')) return header.slice('Bearer '.length);
+// EventSource cannot set Authorization headers, so the client passes the JWT
+// as ?token=. Bridge it into the header so the standard requireAuth middleware
+// (and its DB role re-check) protects this route like every other.
+function tokenFromQuery(req: Request, _res: Response, next: NextFunction): void {
   const queryToken = req.query.token;
-  return typeof queryToken === 'string' && queryToken.length > 0 ? queryToken : null;
+  if (
+    typeof queryToken === 'string' &&
+    queryToken.length > 0 &&
+    !req.headers.authorization
+  ) {
+    req.headers.authorization = `Bearer ${queryToken}`;
+  }
+  next();
 }
 
-router.get('/', async (req, res) => {
-  const token = bearerToken(req);
-  if (!token) {
-    res.status(401).json({ error: { code: 'UNAUTHENTICATED', message: 'Missing bearer token' } });
-    return;
-  }
-
-  let payload: { sub?: string };
-  try {
-    payload = jwt.verify(token, env.JWT_SECRET) as { sub?: string };
-  } catch {
-    res
-      .status(401)
-      .json({ error: { code: 'UNAUTHENTICATED', message: 'Invalid or expired token' } });
-    return;
-  }
-
-  const user = payload.sub ? await userRepository.findById(pool, payload.sub) : undefined;
-  if (!user) {
-    res.status(401).json({ error: { code: 'UNAUTHENTICATED', message: 'User no longer exists' } });
-    return;
-  }
-
+router.get('/', tokenFromQuery, requireAuth, (req, res) => {
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
