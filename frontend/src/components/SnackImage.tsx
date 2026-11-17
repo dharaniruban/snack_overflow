@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from 'react';
 import { formatCategoryLabel } from '@/src/lib/snackDisplay';
 import {
   resolveSnackPlaceholder,
-  SNACK_REAL_IMAGES,
   type SnackImageKey,
 } from '@/src/lib/snackPlaceholders';
 import type { SnackCategory } from '@/src/types/api';
@@ -60,16 +59,25 @@ export function SnackImage({
   imgClassName = '',
   iconSizeClass = 'h-7 w-7',
 }: SnackImageProps) {
-  const resolved = resolveSnackPlaceholder({ name, category, imageUrl });
-  const fallbackSrc = SNACK_REAL_IMAGES[resolved.key];
-  const [activeSrc, setActiveSrc] = useState(resolved.src);
-  const [loadState, setLoadState] = useState<'loading' | 'loaded' | 'error'>('loading');
+  const hasCustomImage = Boolean(imageUrl && imageUrl.trim() !== '');
+  const resolved = resolveSnackPlaceholder({
+    name,
+    category,
+    imageUrl: hasCustomImage ? imageUrl : undefined,
+  });
+  const [activeSrc, setActiveSrc] = useState(hasCustomImage ? resolved.src : '');
+  const [loadState, setLoadState] = useState<'loading' | 'loaded' | 'error'>(
+    hasCustomImage ? 'loading' : 'error'
+  );
   const imgRef = useRef<HTMLImageElement | null>(null);
 
   useEffect(() => {
+    if (!hasCustomImage) {
+      return;
+    }
     setActiveSrc(resolved.src);
     setLoadState('loading');
-  }, [resolved.src]);
+  }, [resolved.src, hasCustomImage]);
 
   useEffect(() => {
     const img = imgRef.current;
@@ -81,11 +89,6 @@ export function SnackImage({
   const { gradient, Icon } = FALLBACK_STYLES[resolved.key] ?? FALLBACK_STYLES.savoury;
 
   const handleError = () => {
-    if (activeSrc !== fallbackSrc) {
-      setActiveSrc(fallbackSrc);
-      setLoadState('loading');
-      return;
-    }
     setLoadState('error');
   };
 
