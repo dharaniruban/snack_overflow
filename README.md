@@ -199,6 +199,7 @@ Seeded via `backend/scripts/seed.ts` (idempotent). Anyone can self-register via
 | Variable       | Required | Notes                                                          |
 | -------------- | -------- | -------------------------------------------------------------- |
 | `VITE_API_URL` | no       | `/api` (default) works in dev via the Vite proxy and in prod via nginx; or set an absolute URL like `http://localhost:4000` |
+| `VITE_SHOW_DEMO_LOGIN` | no   | Set to `"true"` to show "Demo: Admin"/"Demo: Member" buttons on `/login` that fill the seeded demo credentials and submit through the normal login flow. Keep unset/`false` in production. |
 
 ## API reference
 

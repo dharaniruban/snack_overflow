@@ -62,8 +62,26 @@
   }
 }
 
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-4deg);
+  }
+  50% {
+    transform: translateY(-14px) rotate(5deg);
+  }
+}
+
+.float-slow {
+  animation: float-slow 7s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-pulse {
+    animation: none;
+  }
+
+  .float-slow {
     animation: none;
   }
 }

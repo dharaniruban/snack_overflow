@@ -1,4 +1,4 @@
-import { LogIn, LogOut, Menu, Moon, Shield, Sun, User as UserIcon, X } from 'lucide-react';
+import { LogOut, Menu, Moon, Shield, Sun, User as UserIcon, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -13,7 +13,7 @@ interface TopNavItem {
 }
 
 export function AppLayout() {
-  const { user, isAdmin, isLiveSession, switchPreviewRole, logout } = useAuth();
+  const { user, isAdmin, isLiveSession, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -71,6 +71,7 @@ export function AppLayout() {
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           {/* Left: Mobile Menu Button + Brand Mark */}
           <div className="flex items-center gap-3">
+            {isLiveSession && (
             <button
               type="button"
               onClick={() => setMobileNavOpen((v) => !v)}
@@ -84,6 +85,7 @@ export function AppLayout() {
                 <Menu className="h-5 w-5" aria-hidden="true" />
               )}
             </button>
+            )}
 
             <NavLink
               to="/"
@@ -93,7 +95,8 @@ export function AppLayout() {
             </NavLink>
           </div>
 
-          {/* Center: Uppercase Tracked Nav Links with Top Gold Bar Indicator */}
+          {/* Center: Uppercase Tracked Nav Links with Top Gold Bar Indicator (signed-in only) */}
+          {isLiveSession && (
           <nav aria-label="Primary navigation" className="hidden h-full items-center gap-8 md:flex">
             {navItems.map((item) => (
               <NavLink
@@ -121,43 +124,36 @@ export function AppLayout() {
               </NavLink>
             ))}
           </nav>
+          )}
 
-          {/* Right: Role badge + Sign out / preview switcher + Theme Toggle */}
+          {/* Right: Role badge + Sign out + Theme Toggle */}
           <div className="flex items-center gap-2 shrink-0">
             {isLiveSession && (
-              <span className="hidden items-center gap-1.5 rounded-lg border border-[#d4b97e]/40 bg-zinc-900/70 px-2.5 py-1.5 text-[11px] font-semibold tracking-wider text-[#d4b97e] uppercase whitespace-nowrap sm:inline-flex">
-                {isAdmin ? (
-                  <Shield className="h-3.5 w-3.5" aria-hidden="true" />
-                ) : (
-                  <UserIcon className="h-3.5 w-3.5" aria-hidden="true" />
-                )}
-                <span>{user.role}</span>
-              </span>
-            )}
-            {!isLiveSession ? (
-              <button
-                type="button"
-                onClick={() => switchPreviewRole(isAdmin ? 'member' : 'admin')}
-                title="Switch between Admin and Member view"
-                className="hidden items-center gap-1.5 rounded-lg border border-zinc-700/80 bg-zinc-900/70 px-2.5 py-1.5 text-[11px] font-semibold tracking-wider text-[#d4b97e] uppercase whitespace-nowrap transition-colors hover:border-[#d4b97e]/60 hover:bg-zinc-800 sm:inline-flex"
-              >
-                {isAdmin ? (
-                  <Shield className="h-3.5 w-3.5" aria-hidden="true" />
-                ) : (
-                  <UserIcon className="h-3.5 w-3.5" aria-hidden="true" />
-                )}
-                <span>{user.role}</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={logout}
-                aria-label="Sign out"
-                className="hidden items-center gap-1.5 rounded-lg border border-zinc-700/80 bg-zinc-900/70 px-2.5 py-1.5 text-[11px] font-semibold tracking-wider text-zinc-300 uppercase whitespace-nowrap transition-colors hover:border-red-500/60 hover:text-red-300 sm:inline-flex"
-              >
-                <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>Sign out</span>
-              </button>
+              <>
+                <span className="hidden max-w-[10rem] truncate text-xs font-medium text-zinc-300 lg:inline">
+                  {user.name}
+                </span>
+                <span className="hidden items-center gap-1.5 rounded-lg border border-[#d4b97e]/40 bg-zinc-900/70 px-2.5 py-1.5 text-[11px] font-semibold tracking-wider text-[#d4b97e] uppercase whitespace-nowrap sm:inline-flex">
+                  {isAdmin ? (
+                    <Shield className="h-3.5 w-3.5" aria-hidden="true" />
+                  ) : (
+                    <UserIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                  )}
+                  <span>{user.role}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    logout();
+                    navigate('/login');
+                  }}
+                  aria-label="Sign out"
+                  className="hidden items-center gap-1.5 rounded-lg border border-zinc-700/80 bg-zinc-900/70 px-2.5 py-1.5 text-[11px] font-semibold tracking-wider text-zinc-300 uppercase whitespace-nowrap transition-colors hover:border-red-500/60 hover:text-red-300 sm:inline-flex"
+                >
+                  <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>Sign out</span>
+                </button>
+              </>
             )}
 
             <button
@@ -185,6 +181,7 @@ export function AppLayout() {
               transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
               className="border-t border-zinc-800 bg-[#141517] px-4 py-4 md:hidden"
             >
+              {isLiveSession && (
               <nav aria-label="Mobile navigation" className="space-y-1">
                 {navItems.map((item) => (
                   <NavLink
@@ -203,31 +200,26 @@ export function AppLayout() {
                   </NavLink>
                 ))}
               </nav>
+              )}
 
-              <div className="mt-3 flex items-center justify-between border-t border-zinc-800 pt-3">
-                <span className="text-xs text-zinc-400">
-                  {user.name} · <span className="capitalize text-[#d4b97e]">{user.role}</span>
-                </span>
-                {!isLiveSession ? (
+              {isLiveSession && (
+                <div className="mt-3 flex items-center justify-between border-t border-zinc-800 pt-3">
+                  <span className="text-xs text-zinc-400">
+                    {user.name} · <span className="capitalize text-[#d4b97e]">{user.role}</span>
+                  </span>
                   <button
                     type="button"
-                    onClick={() => switchPreviewRole(isAdmin ? 'member' : 'admin')}
-                    className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-zinc-700 px-3 py-1 text-xs font-semibold text-[#d4b97e]"
-                  >
-                    <LogIn className="h-3.5 w-3.5" aria-hidden="true" />
-                    <span>Switch to {isAdmin ? 'Member' : 'Admin'}</span>
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={logout}
+                    onClick={() => {
+                      logout();
+                      navigate('/login');
+                    }}
                     className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-zinc-700 px-3 py-1 text-xs font-semibold text-red-300"
                   >
                     <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
                     <span>Sign out</span>
                   </button>
-                )}
-              </div>
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
