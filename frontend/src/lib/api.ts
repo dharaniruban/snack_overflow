@@ -184,8 +184,8 @@ export const api = {
         skipAuthRedirect: true,
       });
     },
-    me(): Promise<{ user: User }> {
-      return request<{ user: User }>('/auth/me');
+    me(): Promise<User> {
+      return request<User>('/auth/me');
     },
   },
 

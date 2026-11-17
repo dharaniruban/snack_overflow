@@ -75,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const onForbidden = () => {
       api.auth
         .me()
-        .then((res) => setLiveUser(res.user))
+        .then((res) => setLiveUser(res))
         .catch(() => {
           // 401s are handled by the UNAUTHORIZED_EVENT listener.
         });
@@ -104,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .me()
       .then((res) => {
         if (!active) return;
-        setLiveUser(res.user);
+        setLiveUser(res);
       })
       .catch(() => {
         if (!active) return;
