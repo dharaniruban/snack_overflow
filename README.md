@@ -262,7 +262,8 @@ curl 'localhost:4000/snacks?category=savoury&status=running_low&q=peanut&page=1&
   -H "Authorization: Bearer $TOKEN"
 # -> { "data": [ ... ], "pagination": { "page":1, "pageSize":10, "total":3, "totalPages":1 } }
 
-# Summary (status counts + Snack of the Week, null when no votes)
+# Summary (status counts + Snack of the Week: most all-time votes wins;
+# ties break by most recent vote, then case-insensitive name; null when no votes)
 curl localhost:4000/snacks/summary -H "Authorization: Bearer $TOKEN"
 
 # Detail
@@ -516,6 +517,9 @@ double-submit guarding, the password toggle, authenticated redirect, and the
 - `totalPages` is 0 when there are no results; `page` beyond the end returns an
   empty list, not an error.
 - SSE is single-instance; multi-instance needs a broker.
+- Snack of the Week = the snack with the most **all-time** votes (no time
+  window); ties break by most recent vote, then case-insensitive name;
+  `snackOfWeek` is `null` when no snack has votes.
 - Activity `user_id`/votes use `ON DELETE CASCADE`; snack deletion preserves
   activity via `snack_name` snapshot + `SET NULL`.
 

@@ -511,4 +511,37 @@ describe('summary', () => {
     expect(res.body.snackOfWeek.voteCount).toBe(2);
     expect(res.body.snackOfWeek.hasVoted).toBe(true);
   });
+
+  it('is null when no snack has votes', async () => {
+    const member = await createUser({ email: 'member@example.com' });
+    await createSnack({ name: 'Unvoted Snack', quantity: 10 });
+
+    const res = await request(app).get('/snacks/summary').set(authHeaders(member.token));
+    expect(res.status).toBe(200);
+    expect(res.body.snackOfWeek).toBeNull();
+  });
+
+  it('breaks vote ties by most recent vote, then by name', async () => {
+    const member = await createUser({ email: 'member@example.com' });
+    const alphaId = await createSnack({ name: 'Alpha Tie', quantity: 10 });
+    const betaId = await createSnack({ name: 'Beta Tie', quantity: 10 });
+
+    // One vote each; Beta's vote is more recent, so recency beats name order.
+    await pool.query(
+      "INSERT INTO votes (user_id, snack_id, created_at) VALUES ($1, $2, '2024-01-01T00:00:00Z'), ($1, $3, '2024-01-02T00:00:00Z')",
+      [member.id, alphaId, betaId],
+    );
+
+    const first = await request(app).get('/snacks/summary').set(authHeaders(member.token));
+    expect(first.body.snackOfWeek.name).toBe('Beta Tie');
+
+    // Equal vote count AND equal last-vote time: case-insensitive name wins.
+    await pool.query(
+      "UPDATE votes SET created_at = '2024-01-01T00:00:00Z' WHERE snack_id = $1",
+      [betaId],
+    );
+
+    const second = await request(app).get('/snacks/summary').set(authHeaders(member.token));
+    expect(second.body.snackOfWeek.name).toBe('Alpha Tie');
+  });
 });
