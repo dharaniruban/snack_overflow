@@ -319,20 +319,84 @@ so the endpoint also accepts `?token=<jwt>` and bridges it into `Authorization`.
 
 ## Database schema
 
-See `backend/migrations/001_init.sql` and `002_idempotency.sql`.
+See `backend/migrations/001_init.sql`, `002_idempotency.sql` and
+`003_snack_image_url.sql`.
 
-- **`users`** — UUID PK, `lower(email)` unique index, `role CHECK IN
-  ('admin','member')`, `password_hash` (bcrypt).
-- **`snacks`** — UUID PK, `lower(name)` unique index (case-insensitive duplicate
-  names rejected with `DUPLICATE_NAME`), `category` CHECK, `quantity >= 0` and
-  `low_stock_threshold >= 0` CHECK constraints.
-- **`votes`** — composite `PRIMARY KEY (user_id, snack_id)`; this is what makes
-  one-vote-per-person race-safe. `ON DELETE CASCADE` on both FKs.
-- **`activity`** — append-only audit log; `snack_id` is `ON DELETE SET NULL` and
-  `snack_name` is a snapshot, so history survives snack deletion.
-- **`idempotency_keys`** — stores consume responses keyed by
-  `(user_id, snack_id, idempotency_key)`; reusing a key with a different `amount`
-  → `400`.
+**`users`**
+
+| Column          | Type / constraint                              | Why                                              |
+| --------------- | ---------------------------------------------- | ------------------------------------------------ |
+| `id`            | `UUID PRIMARY KEY DEFAULT gen_random_uuid()`  | —                                                |
+| `name`          | `TEXT NOT NULL`                                | —                                                |
+| `email`         | `TEXT NOT NULL`                                | —                                                |
+| `password_hash` | `TEXT NOT NULL`                                | bcrypt hash; never returned by the API           |
+| `role`          | `TEXT NOT NULL CHECK (role IN ('admin','member'))` | two-role model enforced by the DB          |
+| `created_at`    | `TIMESTAMPTZ NOT NULL DEFAULT now()`           | —                                                |
+
+Indexes/constraints: `UNIQUE INDEX users_email_lower_key ON users (lower(email))`
+— case-insensitive duplicate emails rejected without forcing a canonical case.
+
+**`snacks`**
+
+| Column                | Type / constraint                                          | Why                                             |
+| --------------------- | ---------------------------------------------------------- | ----------------------------------------------- |
+| `id`                  | `UUID PRIMARY KEY DEFAULT gen_random_uuid()`               | —                                               |
+| `name`                | `TEXT NOT NULL`                                            | —                                               |
+| `category`            | `TEXT NOT NULL CHECK (category IN ('sweet','savoury','drink','healthy-ish'))` | fixed taxonomy, DB-enforced |
+| `quantity`            | `INTEGER NOT NULL DEFAULT 0 CHECK (quantity >= 0)`         | stock on hand; CHECK is a second safety net under the atomic UPDATE |
+| `low_stock_threshold` | `INTEGER NOT NULL DEFAULT 5 CHECK (low_stock_threshold >= 0)` | drives derived `running_low` status; 5 matches the product default |
+| `image_url`           | `TEXT` (nullable)                                          | optional presentation data (migration 003); `NULL`/empty → placeholder |
+| `created_at`          | `TIMESTAMPTZ NOT NULL DEFAULT now()`                       | —                                               |
+| `updated_at`          | `TIMESTAMPTZ NOT NULL DEFAULT now()`                       | bumped on every UPDATE                          |
+
+Indexes/constraints: `UNIQUE INDEX snacks_name_lower_key ON snacks (lower(name))`
+(case-insensitive duplicate names → `DUPLICATE_NAME`); `INDEX snacks_category_idx
+ON snacks (category)` for the category filter.
+
+**`votes`**
+
+| Column       | Type / constraint                                | Why                                              |
+| ------------ | ------------------------------------------------ | ------------------------------------------------ |
+| `user_id`    | `UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE` | part of composite PK                   |
+| `snack_id`   | `UUID NOT NULL REFERENCES snacks(id) ON DELETE CASCADE` | part of composite PK; snack deletion removes votes |
+| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()`             | feeds the Snack-of-the-Week tie-breaker          |
+
+`PRIMARY KEY (user_id, snack_id)` makes one-vote-per-person race-safe;
+`INDEX votes_snack_id_idx ON votes (snack_id)` because the PK leads with
+`user_id` and summary/count queries look up by snack.
+
+**`activity`** — append-only audit log
+
+| Column            | Type / constraint                                          | Why                                                        |
+| ----------------- | ---------------------------------------------------------- | ---------------------------------------------------------- |
+| `id`              | `UUID PRIMARY KEY DEFAULT gen_random_uuid()`               | —                                                          |
+| `user_id`         | `UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE`     | who made the change (see note below)                       |
+| `snack_id`        | `UUID REFERENCES snacks(id) ON DELETE SET NULL`            | keeps the row if the snack is deleted                      |
+| `snack_name`      | `TEXT NOT NULL`                                            | snapshot so history stays readable after snack deletion/rename |
+| `action`          | `TEXT NOT NULL CHECK (action IN ('consumed','restocked'))` | only two stock-changing actions exist                      |
+| `amount`          | `INTEGER NOT NULL CHECK (amount > 0)`                      | every logged change moves a positive amount                |
+| `quantity_before` | `INTEGER NOT NULL`                                         | lets an auditor verify the stock change without replaying history |
+| `quantity_after`  | `INTEGER NOT NULL`                                         | pair with `quantity_before` for the same reason            |
+| `created_at`      | `TIMESTAMPTZ NOT NULL DEFAULT now()`                       | ordering key for the audit feed                            |
+
+Indexes: `INDEX activity_created_at_idx ON activity (created_at DESC)` (feed
+order) and `INDEX activity_snack_id_idx ON activity (snack_id)`.
+
+**`idempotency_keys`** (migration 002)
+
+| Column            | Type / constraint                                          | Why                                                            |
+| ----------------- | ---------------------------------------------------------- | -------------------------------------------------------------- |
+| `id`              | `UUID PRIMARY KEY DEFAULT gen_random_uuid()`               | —                                                              |
+| `user_id`         | `UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE`     | scopes keys per user                                           |
+| `snack_id`        | `UUID NOT NULL REFERENCES snacks(id) ON DELETE CASCADE`    | scopes keys per snack                                          |
+| `idempotency_key` | `TEXT NOT NULL`                                            | client-supplied `Idempotency-Key` header value                 |
+| `amount`          | `INTEGER NOT NULL CHECK (amount > 0)`                      | stored to detect key reuse with a different amount → `400`     |
+| `response`        | `JSONB NOT NULL`                                           | stored consume response replayed verbatim on retry             |
+| `status_code`     | `INTEGER NOT NULL`                                         | stored status replayed on retry                                |
+| `created_at`      | `TIMESTAMPTZ NOT NULL DEFAULT now()`                       | —                                                              |
+
+`UNIQUE (user_id, snack_id, idempotency_key)` is the dedupe constraint;
+reusing a key with a different `amount` → `400 VALIDATION_ERROR`.
 
 Status is **derived in SQL**, never stored:
 
