@@ -16,12 +16,14 @@ import {
   setStoredToken,
   UNAUTHORIZED_EVENT,
 } from '@/src/lib/api';
-import {
-  getLocalGuestUser,
-  getLocalUserRole,
-  setLocalUserRole,
-} from '@/src/lib/pantryStore';
-import type { User, UserRole } from '@/src/types/api';
+import type { User } from '@/src/types/api';
+
+const GUEST_USER: User = {
+  id: 'guest',
+  name: 'Guest',
+  email: '',
+  role: 'member',
+};
 
 interface AuthContextValue {
   user: User;
@@ -32,7 +34,6 @@ interface AuthContextValue {
   isAdmin: boolean;
   login: (email: string, password: string) => Promise<User>;
   register: (name: string, email: string, password: string) => Promise<User>;
-  switchPreviewRole: (role: UserRole) => void;
   logout: () => void;
 }
 
@@ -43,7 +44,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { showToast } = useToast();
   const [token, setToken] = useState<string | null>(() => getStoredToken());
   const [liveUser, setLiveUser] = useState<User | null>(null);
-  const [previewRole, setPreviewRole] = useState<UserRole>(() => getLocalUserRole());
   const [isLoading, setIsLoading] = useState<boolean>(() => Boolean(getStoredToken()));
 
   const clearLiveSession = useCallback(
@@ -146,23 +146,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [queryClient]
   );
 
-  const switchPreviewRole = useCallback(
-    (role: UserRole) => {
-      setLocalUserRole(role);
-      setPreviewRole(role);
-      showToast(
-        role === 'admin' ? 'Switched to Pantry Admin view.' : 'Switched to Member view.',
-        'info'
-      );
-    },
-    [showToast]
-  );
-
   const logout = useCallback(() => {
     clearLiveSession(false);
   }, [clearLiveSession]);
 
-  const activeUser = liveUser ?? getLocalGuestUser(previewRole);
+  const activeUser = liveUser ?? GUEST_USER;
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -174,10 +162,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAdmin: activeUser.role === 'admin',
       login,
       register,
-      switchPreviewRole,
       logout,
     }),
-    [activeUser, token, isLoading, liveUser, login, register, switchPreviewRole, logout]
+    [activeUser, token, isLoading, liveUser, login, register, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
