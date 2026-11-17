@@ -484,6 +484,15 @@ double-submit guarding, the password toggle, authenticated redirect, and the
   multi-replica deployments need Redis (rate-limit store, pub/sub fan-out).
 - **Derived status in SQL** — no drift between `quantity` and a stored flag;
   filters and pagination stay server-side and consistent.
+- **SSE authentication via `?token=`** — `EventSource` cannot set headers, so
+  the JWT travels in the query string, where proxies, access logs, browser
+  history and `Referer` headers can all record it. Mitigations that exist
+  today: 1h token expiry, role re-read from the DB on every connect, and the
+  nginx `/api/events` location logs method + path only (`sse_no_query` format)
+  so the token is not written to the access log; the backend logs no request
+  lines at all. Upgrade path (not implemented): issue a short-lived,
+  single-use SSE ticket from an authenticated `POST /events/ticket`, or use a
+  fetch-based SSE client that can send the `Authorization` header.
 
 ### What breaks first at 100x users
 
