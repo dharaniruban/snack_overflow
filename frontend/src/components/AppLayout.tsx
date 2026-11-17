@@ -61,7 +61,9 @@ export function AppLayout() {
     { to: '/', label: 'HOME', end: true },
     { to: '/snacks', label: 'MENU' },
     ...(isAdmin ? [{ to: '/activity', label: 'ACTIVITY' }] : []),
-    { to: '/login', label: isLiveSession ? 'ACCOUNT' : 'SIGN IN' },
+    ...(isLiveSession
+      ? [{ to: '/account', label: 'ACCOUNT' }]
+      : [{ to: '/login', label: 'SIGN IN' }]),
   ];
 
   return (

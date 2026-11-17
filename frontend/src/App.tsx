@@ -8,6 +8,7 @@ import { ThemeProvider } from '@/src/context/ThemeContext';
 import { ToastProvider, useToast } from '@/src/context/ToastContext';
 import { ApiError } from '@/src/lib/errors';
 import { UNAUTHORIZED_EVENT } from '@/src/lib/api';
+import { AccountPage } from '@/src/pages/AccountPage';
 import { ActivityPage } from '@/src/pages/ActivityPage';
 import { DashboardPage } from '@/src/pages/DashboardPage';
 import { LoginPage } from '@/src/pages/LoginPage';
@@ -133,6 +134,14 @@ export default function App() {
                       element={
                         <RequireAuth>
                           <SnacksPage />
+                        </RequireAuth>
+                      }
+                    />
+                    <Route
+                      path="account"
+                      element={
+                        <RequireAuth>
+                          <AccountPage />
                         </RequireAuth>
                       }
                     />

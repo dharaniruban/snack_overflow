@@ -4,6 +4,7 @@ import {
   PantryMenuSection,
   type PantryMenuFilterState,
 } from '@/src/components/PantryMenuSection';
+import { useSnacksSummary } from '@/src/hooks/useSnacksQuery';
 import { SNACK_CATEGORIES, SNACK_STATUSES } from '@/src/lib/snackDisplay';
 import type { SnackCategory, SnackSortField, SnackStatus, SortOrder } from '@/src/types/api';
 
@@ -14,6 +15,7 @@ const VALID_SORTS = new Set<string>(['name', 'quantity', 'votes']);
 export function SnacksPage() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { data: summary } = useSnacksSummary();
 
   const urlQ = searchParams.get('q') ?? '';
   const urlCategory = (
@@ -118,6 +120,7 @@ export function SnacksPage() {
         onSortChange={handleSortChange}
         onClearAll={clearAllFilters}
         focusSearchTrigger={focusSearchTrigger}
+        snackOfTheWeek={summary?.snackOfTheWeek ?? null}
       />
     </div>
   );

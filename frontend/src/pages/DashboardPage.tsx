@@ -1,26 +1,13 @@
 import { AlertTriangle, CheckCircle2, RefreshCw, XCircle } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useCallback, useState } from 'react';
-import {
-  PantryMenuSection,
-  type PantryMenuFilterState,
-} from '@/src/components/PantryMenuSection';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSnacksSummary } from '@/src/hooks/useSnacksQuery';
 import { getFriendlyErrorMessage } from '@/src/lib/errors';
-import type { SnackCategory, SnackSortField, SnackStatus, SortOrder } from '@/src/types/api';
+import type { SnackStatus } from '@/src/types/api';
 
 const HERO_LEFT_IMAGE = '/src/assets/images/snack_hero_spotlight_1794826279895.jpg';
 const HERO_RIGHT_IMAGE = '/src/assets/images/pantry_login_hero_1794826279876.jpg';
-
-const INITIAL_FILTERS: PantryMenuFilterState = {
-  q: '',
-  category: '',
-  status: '',
-  sort: 'name',
-  order: 'asc',
-  page: 1,
-  pageSize: 10,
-};
 
 export function DashboardPage() {
   const {
@@ -31,66 +18,12 @@ export function DashboardPage() {
     refetch: refetchSummary,
   } = useSnacksSummary();
 
-  const [filters, setFilters] = useState<PantryMenuFilterState>(INITIAL_FILTERS);
+  const navigate = useNavigate();
   const [leftHeroFailed, setLeftHeroFailed] = useState(false);
   const [rightHeroFailed, setRightHeroFailed] = useState(false);
 
-  const updateFilter = useCallback(
-    (key: keyof PantryMenuFilterState, value: string, resetPage = true) => {
-      setFilters((prev) => {
-        const next: PantryMenuFilterState = { ...prev };
-        if (key === 'q') next.q = value;
-        if (key === 'category') next.category = value as SnackCategory | '';
-        if (key === 'status') next.status = value as SnackStatus | '';
-        if (key === 'sort') next.sort = value as SnackSortField;
-        if (key === 'order') next.order = (value === 'desc' ? 'desc' : 'asc') as SortOrder;
-        if (key === 'page') {
-          const parsed = Number.parseInt(value, 10);
-          next.page = Number.isNaN(parsed) || parsed < 1 ? 1 : parsed;
-        }
-        if (key === 'pageSize') {
-          const parsed = Number.parseInt(value, 10);
-          next.pageSize = [10, 20, 50].includes(parsed) ? parsed : 10;
-        }
-        if (resetPage && key !== 'page') {
-          next.page = 1;
-        }
-        return next;
-      });
-    },
-    []
-  );
-
-  const handleSortChange = useCallback((field: SnackSortField) => {
-    setFilters((prev) => {
-      if (prev.sort === field) {
-        return {
-          ...prev,
-          order: prev.order === 'asc' ? 'desc' : 'asc',
-          page: 1,
-        };
-      }
-      return {
-        ...prev,
-        sort: field,
-        order: field === 'name' ? 'asc' : 'desc',
-        page: 1,
-      };
-    });
-  }, []);
-
-  const clearAll = useCallback(() => {
-    setFilters(INITIAL_FILTERS);
-  }, []);
-
   const jumpToMenuStatus = (status: SnackStatus | '') => {
-    setFilters((prev) => ({
-      ...prev,
-      status,
-      page: 1,
-    }));
-    const el = document.getElementById('pantry-menu');
-    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    navigate(status ? `/snacks?status=${status}` : '/snacks');
   };
 
   const counts = summary?.counts ?? { stocked: 0, runningLow: 0, gone: 0 };
@@ -300,14 +233,6 @@ export function DashboardPage() {
         </div>
       </section>
 
-      {/* SIGNATURE TWO-COLUMN EDITORIAL MENU */}
-      <PantryMenuSection
-        filters={filters}
-        onUpdateFilter={updateFilter}
-        onSortChange={handleSortChange}
-        onClearAll={clearAll}
-        snackOfTheWeek={summary?.snackOfTheWeek ?? null}
-      />
     </div>
   );
 }
