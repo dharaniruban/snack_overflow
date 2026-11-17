@@ -34,6 +34,15 @@ export default defineConfig(() => {
       },
     },
     server: {
+      // Same-origin API proxy so VITE_API_URL=/api works in dev exactly like
+      // the nginx config does in production (see frontend/nginx.conf).
+      proxy: {
+        '/api': {
+          target: 'http://localhost:4000',
+          changeOrigin: true,
+          rewrite: (p) => p.replace(/^\/api/, ''),
+        },
+      },
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modify—file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
