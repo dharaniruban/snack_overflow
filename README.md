@@ -130,7 +130,12 @@ survive reloads and can be shared as links.
 
 ### Option A — Docker Compose (recommended)
 
+`docker-compose.yml` requires `JWT_SECRET` from the environment — there is no
+insecure default. Generate one and put it in a root `.env` (Docker Compose
+reads `.env` automatically; `.env` is gitignored):
+
 ```bash
+echo "JWT_SECRET=$(openssl rand -hex 32)" > .env
 docker compose up --build
 ```
 
@@ -141,8 +146,8 @@ Then open <http://localhost:5173>. Services:
 - **Postgres 16**: `localhost:5432` (`postgres` / `postgres`, db `snack_overflow`)
 
 The backend container runs `migrate` and `seed` on every start; both are
-idempotent. Set `JWT_SECRET` in your shell env before `up` for anything beyond
-local dev (a dev-only default is baked into compose).
+idempotent. `JWT_SECRET` must come from the environment (see the root
+`.env.example`); without it `docker compose up` fails with a clear error.
 
 ### Option B — Manual
 
