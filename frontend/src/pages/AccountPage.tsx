@@ -1,9 +1,6 @@
 import { LogOut, Mail, Shield, Shuffle, User as UserIcon } from 'lucide-react';
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/src/context/AuthContext';
-import { useToast } from '@/src/context/ToastContext';
-import { getFriendlyErrorMessage } from '@/src/lib/errors';
 
 const SHOW_DEMO_LOGIN = import.meta.env.VITE_SHOW_DEMO_LOGIN === 'true';
 
@@ -13,27 +10,18 @@ const DEMO_ACCOUNTS = [
 ];
 
 export function AccountPage() {
-  const { user, isAdmin, login, logout } = useAuth();
-  const { showToast } = useToast();
+  const { user, isAdmin, logout } = useAuth();
   const navigate = useNavigate();
-  const [switching, setSwitching] = useState(false);
 
   const handleLogout = () => {
     logout();
     navigate('/login', { replace: true });
   };
 
-  const handleSwitch = async (account: (typeof DEMO_ACCOUNTS)[number]) => {
-    if (switching || account.role === user.role) return;
-    setSwitching(true);
-    try {
-      const switched = await login(account.email, account.password);
-      showToast(`Switched to ${switched.name}.`, 'success');
-    } catch (err) {
-      showToast(getFriendlyErrorMessage(err, 'Could not switch account.'), 'error');
-    } finally {
-      setSwitching(false);
-    }
+  const handleSwitch = (account: (typeof DEMO_ACCOUNTS)[number]) => {
+    if (account.role === user.role) return;
+    logout();
+    navigate('/login', { replace: true });
   };
 
   const initial = user.name.trim().charAt(0).toUpperCase() || '?';
@@ -120,15 +108,13 @@ export function AccountPage() {
                     <button
                       key={account.role}
                       type="button"
-                      disabled={switching || isCurrent}
+                      disabled={isCurrent}
                       onClick={() => void handleSwitch(account)}
                       className="min-h-[44px] rounded-lg border border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-200 transition-colors hover:border-[#d4b97e]/60 hover:text-[#d4b97e] focus-visible:outline-2 focus-visible:outline-[#d4b97e] disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {switching
-                        ? 'Switching…'
-                        : isCurrent
-                          ? `Current: ${account.label}`
-                          : `Switch to ${account.label}`}
+                      {isCurrent
+                        ? `Current: ${account.label}`
+                        : `Switch to ${account.label}`}
                     </button>
                   );
                 })}
