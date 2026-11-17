@@ -205,9 +205,37 @@ Under READ COMMITTED, Postgres takes a row lock for the `UPDATE` and re-evaluate
 
 ## Authorization
 
-- `requireAuth` verifies the JWT **and re-reads the user from the DB**, so `req.user.role` always reflects current DB state, never just token claims.
-- `requireRole('admin')` guards create/update/delete/restock/activity. Members physically cannot render admin buttons, but the server enforces it regardless.
-- Passwords are bcrypt-hashed (cost 12); `password_hash` is never selected into responses or logs. Unknown-email logins run a dummy bcrypt compare to reduce timing leaks, and wrong-email/wrong-password return the identical error.
+There are exactly two roles: `admin` and `member`. Admin is a **superset** of member — admins are also pantry users, so they can consume and vote like members.
+
+| Capability | Endpoint | Member | Admin |
+| --- | --- | --- | --- |
+| Log in | `POST /auth/login` | yes | yes |
+| View snack list (filter, search, paginate) | `GET /snacks` | yes | yes |
+| View one snack | `GET /snacks/:id` | yes | yes |
+| View dashboard summary + Snack of the Week | `GET /snacks/summary` | yes | yes |
+| Consume a snack | `POST /snacks/:id/consume` | yes | yes |
+| Vote / unvote | `POST`, `DELETE /snacks/:id/vote` | yes | yes |
+| Add a snack | `POST /snacks` | **403** | yes |
+| Edit a snack | `PATCH /snacks/:id` | **403** | yes |
+| Delete a snack | `DELETE /snacks/:id` | **403** | yes |
+| Restock a snack | `POST /snacks/:id/restock` | **403** | yes |
+| View activity log | `GET /activity` | **403** | yes |
+
+### How it is enforced
+
+- `requireAuth` (`src/middleware/auth.ts`) verifies the JWT and **re-reads the user from the DB**, attaching `req.user = { id, name, email, role }`. Missing/malformed/expired tokens get `401 UNAUTHENTICATED`.
+- `requireRole(...roles)` runs after `requireAuth` and returns `403 FORBIDDEN` with the same body (`"You don't have permission to do that."`) for every forbidden case. It never leaks which role would have been allowed.
+- Order on every protected route: **authenticate (401) → authorize role (403) → validate input (400) → business logic (404/409)**. A member sending an invalid body to an admin route gets 403, not 400. The role comes only from the verified token + DB row — never from the request body, query, or headers.
+- **Default deny:** every router declares its access per route (visible at a glance in `src/modules/*/routes.ts`). `tests/rbac.test.ts` walks the Express router stack and fails if any route lacks `requireAuth` (except `POST /auth/login`, `POST /auth/register`, and the `GET /health` probe). `GET /events` (SSE) bridges `?token=` into the Authorization header so it uses the same middleware — `EventSource` cannot set headers.
+- `POST /auth/register` always creates `role = 'member'`; the strict schema rejects a `role` field in the body, so self-promotion is impossible. Admin accounts come only from `scripts/seed.ts`.
+- The login response returns `{ token, user: { id, name, email, role } }` — never `password_hash`.
+- **401 vs 403:** 401 means "I don't know who you are" (bad/missing/expired token); 403 means "I know who you are, but not allowed". The frontend clears the session on 401 and shows a toast + refetches `/auth/me` on 403.
+
+### JWT claim vs DB lookup trade-off
+
+`requireAuth` trusts the JWT only for *identity* (`sub`); the role is re-read from the database on every request. This costs one indexed `SELECT` per request but means a demoted admin or deleted user loses access immediately instead of waiting for token expiry — the alternative (trusting `role` in the JWT) makes revocation impossible until TTL. At scale this becomes the first auth bottleneck: mitigate with a short-TTL role cache (e.g. 30–60s) or a `token_version` column checked alongside the user row.
+
+Passwords are bcrypt-hashed (cost 12); `password_hash` is never selected into responses or logs. Unknown-email logins run a dummy bcrypt compare to reduce timing leaks, and wrong-email/wrong-password return the identical error.
 
 ## Tests
 
@@ -218,7 +246,7 @@ npm test
 
 Requires `TEST_DATABASE_URL` (or `DATABASE_URL`) pointing at a **separate** Postgres database; `tests/env.ts` defaults to `snack_overflow_test`. Migrations run automatically; tables are truncated before each test. `vitest.config.ts` sets `fileParallelism: false` because all files share one DB.
 
-Covered: auth (no token 401, member→admin 403, wrong password 401, no hash leakage), validation (bad amounts, unknown category, duplicate names), filtering/search/pagination, status boundaries (0 / 1 / threshold / threshold+1), atomic consume+activity, restock, votes, summary, idempotent consume retries, sorting allowlist, and the required concurrency cases (10 parallel consumes, 10 parallel votes).
+Covered: auth (no token 401, member→admin 403, wrong password 401, no hash leakage, register cannot self-promote), the full RBAC matrix (table-driven: no token → 401, tampered/expired/wrong-secret token → 401, member → 403 with the database provably unchanged, admin → success; members and admins can consume/vote; invalid body on an admin route → 403 not 400; DB role demotion takes effect on the next request; router-stack walk asserting default-deny), validation (bad amounts, unknown category, duplicate names), filtering/search/pagination, status boundaries (0 / 1 / threshold / threshold+1), atomic consume+activity, restock, votes, summary, idempotent consume retries, sorting allowlist, and the required concurrency cases (10 parallel consumes, 10 parallel votes).
 
 ## Design note
 
@@ -238,6 +266,7 @@ Covered: auth (no token 401, member→admin 403, wrong password 401, no hash lea
 4. **In-memory rate limiting** — move to Redis.
 5. **JWT revocation:** stateless tokens can't be revoked before expiry; add a `token_version`/denylist or shorten TTL + refresh flow.
 6. **SSE connection limits:** one TCP connection per client per instance; scale via Redis pub/sub fan-out or a dedicated realtime tier.
+7. **Per-request role lookup:** `requireAuth` does one indexed `users` SELECT per request — cheap now, but at high RPS it dominates DB load. Mitigate with a short-TTL role cache or a `token_version` column; do **not** move the role back into the JWT, or demotions stop taking effect until token expiry.
 
 ## Assumptions
 
