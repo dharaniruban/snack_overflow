@@ -4,11 +4,11 @@ import { useAuth } from '@/src/context/AuthContext';
 import { getApiBaseUrl } from '@/src/lib/api';
 
 export function useSnackEvents(): void {
-  const { token, isAuthenticated } = useAuth();
+  const { token, isLiveSession } = useAuth();
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (!isAuthenticated || !token) {
+    if (!isLiveSession || !token) {
       return;
     }
 
@@ -28,5 +28,5 @@ export function useSnackEvents(): void {
       eventSource.removeEventListener('snack', handleSnackEvent);
       eventSource.close();
     };
-  }, [isAuthenticated, token, queryClient]);
+  }, [isLiveSession, token, queryClient]);
 }

@@ -1,4 +1,5 @@
 import { ApiError } from '@/src/lib/errors';
+import { getLocalGuestUser, localPantryStore } from '@/src/lib/pantryStore';
 import type {
   ActivityListResponse,
   AuthResponse,
@@ -13,6 +14,7 @@ import type {
 
 export const TOKEN_STORAGE_KEY = 'snack_overflow_token';
 export const UNAUTHORIZED_EVENT = 'snack-overflow:unauthorized';
+export const FORBIDDEN_EVENT = 'snack-overflow:forbidden';
 
 export function getApiBaseUrl(): string {
   const configured = import.meta.env.VITE_API_URL as string | undefined;
@@ -38,7 +40,7 @@ export function setStoredToken(token: string | null): void {
       localStorage.removeItem(TOKEN_STORAGE_KEY);
     }
   } catch {
-    // Ignore storage quota errors in restricted environments
+    // Ignore storage quota errors
   }
 }
 
@@ -123,6 +125,10 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
       setStoredToken(null);
       window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
     }
+    if (response.status === 403) {
+      // Role may have changed server-side; let AuthContext refresh /me.
+      window.dispatchEvent(new CustomEvent(FORBIDDEN_EVENT));
+    }
 
     throw new ApiError(response.status, code, message, errorBody?.details);
   }
@@ -136,6 +142,30 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   }
 
   return payload as T;
+}
+
+function isBackendUnavailable(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    (error.code === 'BACKEND_UNREACHABLE' || error.code === 'NETWORK_ERROR')
+  );
+}
+
+async function withPantryFallback<T>(
+  liveCall: () => Promise<T>,
+  fallbackCall: () => T
+): Promise<T> {
+  if (!getStoredToken()) {
+    return fallbackCall();
+  }
+  try {
+    return await liveCall();
+  } catch (err) {
+    if (isBackendUnavailable(err)) {
+      return fallbackCall();
+    }
+    throw err;
+  }
 }
 
 function buildQueryString(params: Record<string, string | number | undefined>): string {
@@ -181,55 +211,92 @@ export const api = {
         sort: params.sort,
         order: params.order,
       });
-      return request<SnacksListResponse>(`/snacks${qs}`);
+      return withPantryFallback(
+        () => request<SnacksListResponse>(`/snacks${qs}`),
+        () => localPantryStore.listSnacks(params)
+      );
     },
     summary(): Promise<SnacksSummaryResponse> {
-      return request<SnacksSummaryResponse>('/snacks/summary');
+      return withPantryFallback(
+        () => request<SnacksSummaryResponse>('/snacks/summary'),
+        () => localPantryStore.summary()
+      );
     },
     get(id: string): Promise<Snack> {
-      return request<Snack>(`/snacks/${encodeURIComponent(id)}`);
+      return withPantryFallback(
+        () => request<Snack>(`/snacks/${encodeURIComponent(id)}`),
+        () => localPantryStore.getSnack(id)
+      );
     },
     create(input: CreateSnackInput): Promise<Snack> {
-      return request<Snack>('/snacks', {
-        method: 'POST',
-        body: JSON.stringify(input),
-      });
+      return withPantryFallback(
+        () =>
+          request<Snack>('/snacks', {
+            method: 'POST',
+            body: JSON.stringify(input),
+          }),
+        () => localPantryStore.createSnack(input)
+      );
     },
     update(id: string, input: UpdateSnackInput): Promise<Snack> {
-      return request<Snack>(`/snacks/${encodeURIComponent(id)}`, {
-        method: 'PATCH',
-        body: JSON.stringify(input),
-      });
+      return withPantryFallback(
+        () =>
+          request<Snack>(`/snacks/${encodeURIComponent(id)}`, {
+            method: 'PATCH',
+            body: JSON.stringify(input),
+          }),
+        () => localPantryStore.updateSnack(id, input)
+      );
     },
     remove(id: string): Promise<void> {
-      return request<void>(`/snacks/${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-      });
+      return withPantryFallback(
+        () =>
+          request<void>(`/snacks/${encodeURIComponent(id)}`, {
+            method: 'DELETE',
+          }),
+        () => localPantryStore.removeSnack(id)
+      );
     },
     consume(id: string, amount: number, idempotencyKey: string): Promise<Snack> {
-      return request<Snack>(`/snacks/${encodeURIComponent(id)}/consume`, {
-        method: 'POST',
-        headers: {
-          'Idempotency-Key': idempotencyKey,
-        },
-        body: JSON.stringify({ amount }),
-      });
+      return withPantryFallback(
+        () =>
+          request<Snack>(`/snacks/${encodeURIComponent(id)}/consume`, {
+            method: 'POST',
+            headers: {
+              'Idempotency-Key': idempotencyKey,
+            },
+            body: JSON.stringify({ amount }),
+          }),
+        () => localPantryStore.consumeSnack(id, amount, getLocalGuestUser().name)
+      );
     },
     restock(id: string, amount: number): Promise<Snack> {
-      return request<Snack>(`/snacks/${encodeURIComponent(id)}/restock`, {
-        method: 'POST',
-        body: JSON.stringify({ amount }),
-      });
+      return withPantryFallback(
+        () =>
+          request<Snack>(`/snacks/${encodeURIComponent(id)}/restock`, {
+            method: 'POST',
+            body: JSON.stringify({ amount }),
+          }),
+        () => localPantryStore.restockSnack(id, amount, getLocalGuestUser().name)
+      );
     },
     vote(id: string): Promise<Snack> {
-      return request<Snack>(`/snacks/${encodeURIComponent(id)}/vote`, {
-        method: 'POST',
-      });
+      return withPantryFallback(
+        () =>
+          request<Snack>(`/snacks/${encodeURIComponent(id)}/vote`, {
+            method: 'POST',
+          }),
+        () => localPantryStore.voteSnack(id)
+      );
     },
     unvote(id: string): Promise<void> {
-      return request<void>(`/snacks/${encodeURIComponent(id)}/vote`, {
-        method: 'DELETE',
-      });
+      return withPantryFallback(
+        () =>
+          request<void>(`/snacks/${encodeURIComponent(id)}/vote`, {
+            method: 'DELETE',
+          }),
+        () => localPantryStore.unvoteSnack(id)
+      );
     },
   },
 
@@ -239,7 +306,10 @@ export const api = {
         page: params.page,
         pageSize: params.pageSize,
       });
-      return request<ActivityListResponse>(`/activity${qs}`);
+      return withPantryFallback(
+        () => request<ActivityListResponse>(`/activity${qs}`),
+        () => localPantryStore.listActivity(params)
+      );
     },
   },
 };

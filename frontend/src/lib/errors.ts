@@ -15,7 +15,7 @@ export class ApiError extends Error {
 const FRIENDLY_CODE_MESSAGES: Record<string, string> = {
   VALIDATION_ERROR: 'Please check your input and try again.',
   UNAUTHENTICATED: 'Your session has expired. Please sign in again.',
-  FORBIDDEN: 'You do not have permission to perform this action.',
+  FORBIDDEN: "You don't have permission to do that.",
   NOT_FOUND: 'That item could not be found in the pantry.',
   INSUFFICIENT_STOCK: 'Someone beat you to the last packet!',
   ALREADY_VOTED: 'You have already voted for this snack.',

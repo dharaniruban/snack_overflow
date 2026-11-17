@@ -45,9 +45,9 @@ function SortIcon({
     return <ArrowUpDown className="h-3.5 w-3.5 text-zinc-400" aria-hidden="true" />;
   }
   return order === 'asc' ? (
-    <ArrowUp className="h-3.5 w-3.5 text-yellow-500 dark:text-yellow-400" aria-hidden="true" />
+    <ArrowUp className="h-3.5 w-3.5 text-[#a98b4f] dark:text-[#d4b97e]" aria-hidden="true" />
   ) : (
-    <ArrowDown className="h-3.5 w-3.5 text-yellow-500 dark:text-yellow-400" aria-hidden="true" />
+    <ArrowDown className="h-3.5 w-3.5 text-[#a98b4f] dark:text-[#d4b97e]" aria-hidden="true" />
   );
 }
 
@@ -83,7 +83,7 @@ function TableRow({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.18, delay: Math.min(index * 0.025, 0.2) }}
-      className="border-b border-zinc-100 transition-colors last:border-b-0 hover:bg-zinc-50/80 dark:border-zinc-800/80 dark:hover:bg-zinc-800/40"
+      className="border-b border-stone-200/80 transition-colors last:border-b-0 hover:bg-stone-100/70 dark:border-zinc-800/80 dark:hover:bg-zinc-800/40"
     >
       <td className="px-4 py-3.5">
         <div className="flex items-center gap-3">
@@ -91,17 +91,17 @@ function TableRow({
             name={snack.name}
             category={snack.category}
             imageUrl={snack.imageUrl}
-            className="h-10 w-12 shrink-0 rounded-lg border border-zinc-200/80 dark:border-zinc-700"
+            className="h-11 w-14 shrink-0 rounded-lg border border-stone-200 dark:border-zinc-700"
             iconSizeClass="h-4 w-4"
           />
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="truncate font-bold text-zinc-950 dark:text-zinc-100">
+              <span className="truncate font-serif text-base font-semibold text-zinc-900 dark:text-zinc-100">
                 {snack.name}
               </span>
               {snack.quantity === 1 && <LastPacketBadge />}
             </div>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="text-[11px] font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
               {formatCategoryLabel(snack.category)}
               <span aria-hidden="true" className="mx-1.5">·</span>
               <span className="tabular-nums">Min {snack.lowStockThreshold}</span>
@@ -116,7 +116,7 @@ function TableRow({
 
       <td className="px-4 py-3.5">
         <div className="flex min-w-[140px] items-center gap-3">
-          <span className="w-8 text-right font-mono text-sm font-bold tabular-nums text-zinc-950 dark:text-zinc-100">
+          <span className="w-8 text-right font-mono text-sm font-bold tabular-nums text-zinc-900 dark:text-zinc-100">
             {snack.quantity}
           </span>
           <div className="w-24">
@@ -137,10 +137,10 @@ function TableRow({
           onClick={(e) => onVote(snack, e.currentTarget)}
           aria-pressed={snack.hasVoted}
           aria-label={`${snack.hasVoted ? 'Remove vote for' : 'Vote for'} ${snack.name}`}
-          className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-xl border px-2.5 py-1 text-xs font-bold transition-all duration-150 active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-yellow-400 disabled:opacity-60 ${
+          className={`inline-flex min-h-[34px] items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold transition-all duration-150 active:scale-[0.96] disabled:opacity-60 ${
             snack.hasVoted
-              ? 'border-yellow-400 bg-yellow-400 text-zinc-950'
-              : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700'
+              ? 'border-[#d4b97e] bg-[#d4b97e] text-zinc-950'
+              : 'border-stone-300 bg-white text-zinc-700 hover:bg-stone-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700'
           }`}
         >
           <Heart
@@ -155,17 +155,17 @@ function TableRow({
 
       <td className="px-4 py-3.5">
         <div className="flex items-center justify-end gap-2">
-          <div className="inline-flex items-center rounded-xl border border-zinc-200 bg-zinc-100 p-0.5 dark:border-zinc-700 dark:bg-zinc-800">
+          <div className="inline-flex items-center rounded-lg border border-stone-300 bg-stone-100 p-0.5 dark:border-zinc-700 dark:bg-zinc-800">
             <button
               type="button"
               disabled={isOutOfStock || isConsuming || clampedAmount <= 1}
               onClick={() => setAmount((prev) => Math.max(1, prev - 1))}
               aria-label="Decrease consume amount"
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-700 hover:bg-white disabled:opacity-35 dark:text-zinc-300 dark:hover:bg-zinc-700"
+              className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-700 hover:bg-white disabled:opacity-35 dark:text-zinc-300 dark:hover:bg-zinc-700"
             >
               <Minus className="h-3 w-3" aria-hidden="true" />
             </button>
-            <span className="min-w-[1.6rem] text-center font-mono text-xs font-bold tabular-nums text-zinc-950 dark:text-zinc-100">
+            <span className="min-w-[1.6rem] text-center font-mono text-xs font-bold tabular-nums text-zinc-900 dark:text-zinc-100">
               {isOutOfStock ? 0 : clampedAmount}
             </span>
             <button
@@ -173,7 +173,7 @@ function TableRow({
               disabled={isOutOfStock || isConsuming || clampedAmount >= snack.quantity}
               onClick={() => setAmount((prev) => Math.min(snack.quantity, prev + 1))}
               aria-label="Increase consume amount"
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-700 hover:bg-white disabled:opacity-35 dark:text-zinc-300 dark:hover:bg-zinc-700"
+              className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-700 hover:bg-white disabled:opacity-35 dark:text-zinc-300 dark:hover:bg-zinc-700"
             >
               <Plus className="h-3 w-3" aria-hidden="true" />
             </button>
@@ -182,7 +182,7 @@ function TableRow({
             type="button"
             disabled={isOutOfStock || isConsuming}
             onClick={() => onConsume(snack, clampedAmount)}
-            className="inline-flex min-h-[34px] items-center justify-center whitespace-nowrap rounded-xl bg-yellow-400 px-3.5 py-1.5 text-xs font-bold text-zinc-950 transition-all duration-150 hover:bg-yellow-300 active:scale-[0.97] disabled:cursor-not-allowed disabled:bg-zinc-200 disabled:text-zinc-500 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-500"
+            className="inline-flex min-h-[34px] items-center justify-center whitespace-nowrap rounded-lg bg-[#1c1d20] px-3.5 py-1.5 text-xs font-bold tracking-wider text-[#f3dfb0] uppercase transition-all duration-150 hover:bg-[#2c2e33] active:scale-[0.97] disabled:cursor-not-allowed disabled:bg-stone-200 disabled:text-zinc-500 dark:bg-[#d4b97e] dark:text-[#141517] dark:hover:bg-[#e3ca92] dark:disabled:bg-zinc-800 dark:disabled:text-zinc-500"
           >
             {isConsuming ? 'Grabbing...' : isOutOfStock ? 'Empty' : 'Grab'}
           </button>
@@ -197,7 +197,7 @@ function TableRow({
               onClick={() => onRestock(snack)}
               title="Restock"
               aria-label={`Restock ${snack.name}`}
-              className="rounded-lg p-2 text-zinc-700 transition-colors hover:bg-yellow-400 hover:text-zinc-950 dark:text-yellow-400 dark:hover:bg-yellow-400 dark:hover:text-zinc-950"
+              className="rounded-lg p-2 text-zinc-700 transition-colors hover:bg-[#d4b97e] hover:text-zinc-950 dark:text-[#d4b97e] dark:hover:bg-[#d4b97e] dark:hover:text-zinc-950"
             >
               <PackagePlus className="h-4 w-4" aria-hidden="true" />
             </button>
@@ -206,7 +206,7 @@ function TableRow({
               onClick={() => onEdit(snack)}
               title="Edit"
               aria-label={`Edit ${snack.name}`}
-              className="rounded-lg p-2 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white"
+              className="rounded-lg p-2 text-zinc-600 transition-colors hover:bg-stone-200/70 hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white"
             >
               <Pencil className="h-4 w-4" aria-hidden="true" />
             </button>
@@ -215,7 +215,7 @@ function TableRow({
               onClick={() => onDelete(snack)}
               title="Delete"
               aria-label={`Delete ${snack.name}`}
-              className="rounded-lg p-2 text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
+              className="rounded-lg p-2 text-red-700 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
             >
               <Trash2 className="h-4 w-4" aria-hidden="true" />
             </button>
@@ -241,11 +241,11 @@ export function SnackTable({
   onDelete,
 }: SnackTableProps) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="overflow-hidden rounded-xl border border-stone-300/80 bg-white/90 dark:border-zinc-800 dark:bg-zinc-900">
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-left text-sm">
           <thead>
-            <tr className="border-b border-zinc-200 bg-zinc-50/80 text-xs font-semibold text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/80 dark:text-zinc-300">
+            <tr className="border-b border-stone-200 bg-stone-100/80 text-[11px] font-bold tracking-wider text-zinc-600 uppercase dark:border-zinc-800 dark:bg-zinc-900/90 dark:text-zinc-300">
               <th className="px-4 py-3">
                 <button
                   type="button"

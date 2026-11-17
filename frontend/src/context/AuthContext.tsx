@@ -11,20 +11,28 @@ import {
 import { useToast } from '@/src/context/ToastContext';
 import {
   api,
+  FORBIDDEN_EVENT,
   getStoredToken,
   setStoredToken,
   UNAUTHORIZED_EVENT,
 } from '@/src/lib/api';
-import type { User } from '@/src/types/api';
+import {
+  getLocalGuestUser,
+  getLocalUserRole,
+  setLocalUserRole,
+} from '@/src/lib/pantryStore';
+import type { User, UserRole } from '@/src/types/api';
 
 interface AuthContextValue {
-  user: User | null;
+  user: User;
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  isLiveSession: boolean;
   isAdmin: boolean;
   login: (email: string, password: string) => Promise<User>;
   register: (name: string, email: string, password: string) => Promise<User>;
+  switchPreviewRole: (role: UserRole) => void;
   logout: () => void;
 }
 
@@ -34,15 +42,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const [token, setToken] = useState<string | null>(() => getStoredToken());
-  const [user, setUser] = useState<User | null>(null);
+  const [liveUser, setLiveUser] = useState<User | null>(null);
+  const [previewRole, setPreviewRole] = useState<UserRole>(() => getLocalUserRole());
   const [isLoading, setIsLoading] = useState<boolean>(() => Boolean(getStoredToken()));
 
-  const clearSession = useCallback(
+  const clearLiveSession = useCallback(
     (notifyExpired = false) => {
       setStoredToken(null);
       setToken(null);
-      setUser(null);
-      queryClient.clear();
+      setLiveUser(null);
+      queryClient.invalidateQueries();
       if (notifyExpired) {
         showToast('Your session has expired. Please sign in again.', 'warning');
       }
@@ -52,23 +61,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const onUnauthorized = () => {
-      clearSession(true);
+      clearLiveSession(true);
     };
     window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
     return () => {
       window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
     };
-  }, [clearSession]);
+  }, [clearLiveSession]);
+
+  // A 403 means the server rejected our role — refresh /me so the UI role
+  // always comes from the server, never from stale local state.
+  useEffect(() => {
+    const onForbidden = () => {
+      api.auth
+        .me()
+        .then((res) => setLiveUser(res.user))
+        .catch(() => {
+          // 401s are handled by the UNAUTHORIZED_EVENT listener.
+        });
+    };
+    window.addEventListener(FORBIDDEN_EVENT, onForbidden);
+    return () => {
+      window.removeEventListener(FORBIDDEN_EVENT, onForbidden);
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
     if (!token) {
-      setUser(null);
+      setLiveUser(null);
       setIsLoading(false);
       return;
     }
 
-    if (user) {
+    if (liveUser) {
       setIsLoading(false);
       return;
     }
@@ -78,13 +104,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .me()
       .then((res) => {
         if (!active) return;
-        setUser(res.user);
+        setLiveUser(res.user);
       })
       .catch(() => {
         if (!active) return;
         setStoredToken(null);
         setToken(null);
-        setUser(null);
+        setLiveUser(null);
       })
       .finally(() => {
         if (!active) return;
@@ -94,14 +120,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [token, user]);
+  }, [token, liveUser]);
 
   const login = useCallback(
     async (email: string, password: string): Promise<User> => {
       const res = await api.auth.login(email, password);
       setStoredToken(res.token);
       setToken(res.token);
-      setUser(res.user);
+      setLiveUser(res.user);
       queryClient.clear();
       return res.user;
     },
@@ -113,29 +139,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await api.auth.register(name, email, password);
       setStoredToken(res.token);
       setToken(res.token);
-      setUser(res.user);
+      setLiveUser(res.user);
       queryClient.clear();
       return res.user;
     },
     [queryClient]
   );
 
+  const switchPreviewRole = useCallback(
+    (role: UserRole) => {
+      setLocalUserRole(role);
+      setPreviewRole(role);
+      showToast(
+        role === 'admin' ? 'Switched to Pantry Admin view.' : 'Switched to Member view.',
+        'info'
+      );
+    },
+    [showToast]
+  );
+
   const logout = useCallback(() => {
-    clearSession(false);
-  }, [clearSession]);
+    clearLiveSession(false);
+  }, [clearLiveSession]);
+
+  const activeUser = liveUser ?? getLocalGuestUser(previewRole);
 
   const value = useMemo<AuthContextValue>(
     () => ({
-      user,
+      user: activeUser,
       token,
       isLoading,
-      isAuthenticated: Boolean(token && user),
-      isAdmin: user?.role === 'admin',
+      isAuthenticated: Boolean(liveUser),
+      isLiveSession: Boolean(token && liveUser),
+      isAdmin: activeUser.role === 'admin',
       login,
       register,
+      switchPreviewRole,
       logout,
     }),
-    [user, token, isLoading, login, register, logout]
+    [activeUser, token, isLoading, liveUser, login, register, switchPreviewRole, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

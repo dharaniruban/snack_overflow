@@ -1,11 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MotionConfig } from 'motion/react';
-import type { ReactNode } from 'react';
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { useEffect, useRef, type ReactNode } from 'react';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppLayout } from '@/src/components/AppLayout';
 import { AuthProvider, useAuth } from '@/src/context/AuthContext';
 import { ThemeProvider } from '@/src/context/ThemeContext';
-import { ToastProvider } from '@/src/context/ToastContext';
+import { ToastProvider, useToast } from '@/src/context/ToastContext';
 import { ApiError } from '@/src/lib/errors';
 import { ActivityPage } from '@/src/pages/ActivityPage';
 import { DashboardPage } from '@/src/pages/DashboardPage';
@@ -27,32 +27,48 @@ const queryClient = new QueryClient({
   },
 });
 
+function FullPageLoader() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-[#141517]">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-700 border-t-[#d4b97e]" />
+    </div>
+  );
+}
+
 function RequireAuth({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
-  const location = useLocation();
-
   if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-950">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-yellow-400 border-t-transparent" />
-          <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
-            Checking pantry session...
-          </p>
-        </div>
-      </div>
-    );
+    return <FullPageLoader />;
   }
-
   if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return <Navigate to="/login" replace />;
   }
+  return <>{children}</>;
+}
 
+function GuestOnly({ children }: { children: ReactNode }) {
+  const { isLiveSession, isLoading } = useAuth();
+  if (isLoading) {
+    return <FullPageLoader />;
+  }
+  if (isLiveSession) {
+    return <Navigate to="/" replace />;
+  }
   return <>{children}</>;
 }
 
 function RequireAdmin({ children }: { children: ReactNode }) {
   const { isAdmin } = useAuth();
+  const { showToast } = useToast();
+  const toastedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isAdmin && !toastedRef.current) {
+      toastedRef.current = true;
+      showToast("Admins only — you don't have permission to view this page.", 'warning');
+    }
+  }, [isAdmin, showToast]);
+
   if (!isAdmin) {
     return <Navigate to="/" replace />;
   }
@@ -68,22 +84,39 @@ export default function App() {
             <AuthProvider>
               <BrowserRouter>
                 <Routes>
-                  <Route path="/login" element={<LoginPage />} />
-                  <Route
-                    element={
-                      <RequireAuth>
-                        <AppLayout />
-                      </RequireAuth>
-                    }
-                  >
-                    <Route index element={<DashboardPage />} />
-                    <Route path="snacks" element={<SnacksPage />} />
+                  <Route element={<AppLayout />}>
+                    <Route
+                      index
+                      element={
+                        <RequireAuth>
+                          <DashboardPage />
+                        </RequireAuth>
+                      }
+                    />
+                    <Route
+                      path="snacks"
+                      element={
+                        <RequireAuth>
+                          <SnacksPage />
+                        </RequireAuth>
+                      }
+                    />
                     <Route
                       path="activity"
                       element={
-                        <RequireAdmin>
-                          <ActivityPage />
-                        </RequireAdmin>
+                        <RequireAuth>
+                          <RequireAdmin>
+                            <ActivityPage />
+                          </RequireAdmin>
+                        </RequireAuth>
+                      }
+                    />
+                    <Route
+                      path="login"
+                      element={
+                        <GuestOnly>
+                          <LoginPage />
+                        </GuestOnly>
                       }
                     />
                   </Route>

@@ -1,25 +1,26 @@
-import {
-  AlertTriangle,
-  ArrowRight,
-  Award,
-  CheckCircle2,
-  Heart,
-  RefreshCw,
-  ShoppingBag,
-  XCircle,
-} from 'lucide-react';
+import { AlertTriangle, CheckCircle2, RefreshCw, XCircle } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { getSnackImageUrl, SnackImage } from '@/src/components/SnackImage';
-import { LastPacketBadge, SnackStatusBadge } from '@/src/components/SnackStatusBadge';
-import { StockFuelGauge } from '@/src/components/StockFuelGauge';
-import { useConsumeMutation, useVoteMutation } from '@/src/hooks/useSnackMutations';
-import { useSnacksList, useSnacksSummary } from '@/src/hooks/useSnacksQuery';
+import { useCallback, useState } from 'react';
+import {
+  PantryMenuSection,
+  type PantryMenuFilterState,
+} from '@/src/components/PantryMenuSection';
+import { useSnacksSummary } from '@/src/hooks/useSnacksQuery';
 import { getFriendlyErrorMessage } from '@/src/lib/errors';
-import { formatCategoryLabel } from '@/src/lib/snackDisplay';
+import type { SnackCategory, SnackSortField, SnackStatus, SortOrder } from '@/src/types/api';
 
-const HERO_SPOTLIGHT_IMAGE = '/src/assets/images/snack_hero_spotlight_1794826279895.jpg';
+const HERO_LEFT_IMAGE = '/src/assets/images/snack_hero_spotlight_1794826279895.jpg';
+const HERO_RIGHT_IMAGE = '/src/assets/images/pantry_login_hero_1794826279876.jpg';
+
+const INITIAL_FILTERS: PantryMenuFilterState = {
+  q: '',
+  category: '',
+  status: '',
+  sort: 'name',
+  order: 'asc',
+  page: 1,
+  pageSize: 10,
+};
 
 export function DashboardPage() {
   const {
@@ -30,371 +31,283 @@ export function DashboardPage() {
     refetch: refetchSummary,
   } = useSnacksSummary();
 
-  const { data: watchlistData, isLoading: watchlistLoading } = useSnacksList({
-    page: 1,
-    pageSize: 6,
-    sort: 'quantity',
-    order: 'asc',
-  });
+  const [filters, setFilters] = useState<PantryMenuFilterState>(INITIAL_FILTERS);
+  const [leftHeroFailed, setLeftHeroFailed] = useState(false);
+  const [rightHeroFailed, setRightHeroFailed] = useState(false);
 
-  const voteMutation = useVoteMutation();
-  const consumeMutation = useConsumeMutation();
-  const heroVoteBtnRef = useRef<HTMLButtonElement | null>(null);
-  const [heroImgFailed, setHeroImgFailed] = useState(false);
+  const updateFilter = useCallback(
+    (key: keyof PantryMenuFilterState, value: string, resetPage = true) => {
+      setFilters((prev) => {
+        const next: PantryMenuFilterState = { ...prev };
+        if (key === 'q') next.q = value;
+        if (key === 'category') next.category = value as SnackCategory | '';
+        if (key === 'status') next.status = value as SnackStatus | '';
+        if (key === 'sort') next.sort = value as SnackSortField;
+        if (key === 'order') next.order = (value === 'desc' ? 'desc' : 'asc') as SortOrder;
+        if (key === 'page') {
+          const parsed = Number.parseInt(value, 10);
+          next.page = Number.isNaN(parsed) || parsed < 1 ? 1 : parsed;
+        }
+        if (key === 'pageSize') {
+          const parsed = Number.parseInt(value, 10);
+          next.pageSize = [10, 20, 50].includes(parsed) ? parsed : 10;
+        }
+        if (resetPage && key !== 'page') {
+          next.page = 1;
+        }
+        return next;
+      });
+    },
+    []
+  );
+
+  const handleSortChange = useCallback((field: SnackSortField) => {
+    setFilters((prev) => {
+      if (prev.sort === field) {
+        return {
+          ...prev,
+          order: prev.order === 'asc' ? 'desc' : 'asc',
+          page: 1,
+        };
+      }
+      return {
+        ...prev,
+        sort: field,
+        order: field === 'name' ? 'asc' : 'desc',
+        page: 1,
+      };
+    });
+  }, []);
+
+  const clearAll = useCallback(() => {
+    setFilters(INITIAL_FILTERS);
+  }, []);
+
+  const jumpToMenuStatus = (status: SnackStatus | '') => {
+    setFilters((prev) => ({
+      ...prev,
+      status,
+      page: 1,
+    }));
+    const el = document.getElementById('pantry-menu');
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   const counts = summary?.counts ?? { stocked: 0, runningLow: 0, gone: 0 };
   const totalSnacks = counts.stocked + counts.runningLow + counts.gone;
   const pantryHealthPct = totalSnacks > 0 ? Math.round((counts.stocked / totalSnacks) * 100) : 0;
-  const snackOfTheWeek = summary?.snackOfTheWeek ?? null;
-  const heroImageSrc = snackOfTheWeek
-    ? getSnackImageUrl(snackOfTheWeek.category, snackOfTheWeek.name, snackOfTheWeek.imageUrl)
-    : HERO_SPOTLIGHT_IMAGE;
-
-  if (summaryError) {
-    return (
-      <div className="rounded-2xl border border-red-200 bg-white p-8 text-center dark:border-red-900/60 dark:bg-zinc-900">
-        <XCircle className="mx-auto h-8 w-8 text-red-600 dark:text-red-400" aria-hidden="true" />
-        <h2 className="mt-3 font-display text-lg font-bold text-zinc-950 dark:text-white">
-          Unable to load pantry overview
-        </h2>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-          {getFriendlyErrorMessage(summaryErrObj)}
-        </p>
-        <button
-          type="button"
-          onClick={() => void refetchSummary()}
-          className="mt-4 inline-flex min-h-[42px] items-center gap-2 rounded-xl bg-yellow-400 px-4 py-2 text-sm font-bold text-zinc-950 transition-all hover:bg-yellow-300 active:scale-[0.98]"
-        >
-          <RefreshCw className="h-4 w-4" aria-hidden="true" />
-          <span>Retry</span>
-        </button>
-      </div>
-    );
-  }
 
   return (
-    <div className="space-y-8">
-      {/* Hero Focal Anchor: Snack of the Week */}
-      <motion.section
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-        aria-labelledby="snack-of-week-heading"
-      >
-        {summaryLoading ? (
-          <div className="h-64 animate-pulse rounded-2xl border border-zinc-200 bg-zinc-200/70 dark:border-zinc-800 dark:bg-zinc-900" />
-        ) : (
-          <div className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-950 text-white dark:border-zinc-800">
-            {!heroImgFailed && (
+    <div>
+      {/* DIAGONAL SPLIT HERO BANNER (mirrors attached editorial reference) */}
+      <section aria-label="Snack Overflow pantry showcase" className="relative w-full overflow-hidden border-b border-zinc-800 bg-[#141517]">
+        {/* Mobile stacked view (<md) */}
+        <div className="grid grid-cols-1 md:hidden">
+          <div className="relative h-64 overflow-hidden">
+            {!leftHeroFailed && (
               <img
-                src={heroImageSrc}
-                alt={
-                  snackOfTheWeek
-                    ? `${snackOfTheWeek.name} — ${formatCategoryLabel(snackOfTheWeek.category)}`
-                    : 'Curated office snacks arranged on dark slate'
-                }
+                src={HERO_LEFT_IMAGE}
+                alt="Curated artisan office snacks on dark slate"
                 referrerPolicy="no-referrer"
-                onError={() => setHeroImgFailed(true)}
-                className="absolute inset-0 h-full w-full object-cover object-center opacity-75 transition-opacity duration-500"
+                onError={() => setLeftHeroFailed(true)}
+                className="h-full w-full object-cover"
               />
             )}
-            <div className="absolute inset-0 bg-gradient-to-r from-zinc-950 via-zinc-950/92 to-zinc-950/45" />
+            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/85 via-zinc-950/40 to-zinc-950/25" />
+            <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
+              <h1 className="font-serif text-4xl font-semibold italic tracking-tight text-white">
+                Snack Overflow
+              </h1>
+              <p className="mt-1.5 text-[10px] font-semibold tracking-[0.28em] text-[#d4b97e] uppercase">
+                Office Pantry Collective
+              </p>
+            </div>
+          </div>
 
-            <div className="relative z-10 flex flex-col justify-between gap-6 p-6 sm:p-8 lg:flex-row lg:items-end">
-              <div className="max-w-xl">
-                <div className="inline-flex items-center gap-2 text-xs font-bold tracking-wide text-yellow-400 uppercase">
-                  <Award className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  <span>Snack of the Week</span>
-                </div>
-
-                {snackOfTheWeek ? (
-                  <>
-                    <h1
-                      id="snack-of-week-heading"
-                      className="mt-2 font-display text-3xl font-bold tracking-tight text-white text-balance sm:text-4xl"
-                    >
-                      {snackOfTheWeek.name}
-                    </h1>
-                    <p className="mt-2 text-sm text-zinc-300">
-                      <span>{formatCategoryLabel(snackOfTheWeek.category)}</span>
-                      <span aria-hidden="true" className="mx-2">·</span>
-                      <span className="font-mono tabular-nums">
-                        {snackOfTheWeek.quantity} in pantry
-                      </span>
-                      <span aria-hidden="true" className="mx-2">·</span>
-                      <span className="font-mono tabular-nums">
-                        {snackOfTheWeek.voteCount} votes
-                      </span>
-                    </p>
-
-                    <div className="mt-5 flex flex-wrap items-center gap-3">
-                      <button
-                        type="button"
-                        disabled={snackOfTheWeek.quantity <= 0 || consumeMutation.isPending}
-                        onClick={() =>
-                          consumeMutation.mutate({
-                            snackId: snackOfTheWeek.id,
-                            snackName: snackOfTheWeek.name,
-                            amount: 1,
-                          })
-                        }
-                        className="inline-flex min-h-[42px] items-center gap-2 rounded-xl bg-yellow-400 px-4 py-2 text-sm font-bold text-zinc-950 shadow-[0_1px_0_0_rgba(255,255,255,0.45)_inset] transition-all duration-150 hover:bg-yellow-300 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500 disabled:shadow-none"
-                      >
-                        <ShoppingBag className="h-4 w-4" aria-hidden="true" />
-                        <span>
-                          {snackOfTheWeek.quantity <= 0 ? 'Out of stock' : 'Grab one'}
-                        </span>
-                      </button>
-
-                      <button
-                        ref={heroVoteBtnRef}
-                        type="button"
-                        disabled={voteMutation.isPending}
-                        onClick={() =>
-                          voteMutation.mutate({
-                            snack: snackOfTheWeek,
-                            anchorEl: heroVoteBtnRef.current,
-                          })
-                        }
-                        aria-pressed={snackOfTheWeek.hasVoted}
-                        className={`inline-flex min-h-[42px] items-center gap-2 rounded-xl border px-4 py-2 text-sm font-bold transition-all duration-150 active:scale-[0.97] ${
-                          snackOfTheWeek.hasVoted
-                            ? 'border-yellow-400 bg-yellow-400/20 text-yellow-300 hover:bg-yellow-400/30'
-                            : 'border-white/25 bg-white/10 text-white hover:bg-white/20'
-                        }`}
-                      >
-                        <Heart
-                          className={`h-4 w-4 ${
-                            snackOfTheWeek.hasVoted ? 'fill-yellow-400 text-yellow-400' : ''
-                          }`}
-                          aria-hidden="true"
-                        />
-                        <span className="font-mono tabular-nums">
-                          {snackOfTheWeek.hasVoted ? 'Voted' : 'Vote'} ({snackOfTheWeek.voteCount})
-                        </span>
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <h1
-                      id="snack-of-week-heading"
-                      className="mt-2 font-display text-2xl font-bold tracking-tight text-white sm:text-3xl"
-                    >
-                      No Snack of the Week yet
-                    </h1>
-                    <p className="mt-2 text-sm text-zinc-300">
-                      Upvote snacks in the pantry to crown this week’s office favorite.
-                    </p>
-                    <Link
-                      to="/snacks"
-                      className="mt-5 inline-flex min-h-[42px] items-center gap-2 rounded-xl bg-yellow-400 px-4 py-2 text-sm font-bold text-zinc-950 transition-all hover:bg-yellow-300 active:scale-[0.98]"
-                    >
-                      <span>Browse pantry</span>
-                      <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                    </Link>
-                  </>
-                )}
+          <div className="relative h-56 overflow-hidden border-t border-zinc-800">
+            {!rightHeroFailed && (
+              <img
+                src={HERO_RIGHT_IMAGE}
+                alt="Sunlit curated office pantry shelves"
+                referrerPolicy="no-referrer"
+                onError={() => setRightHeroFailed(true)}
+                className="h-full w-full object-cover"
+              />
+            )}
+            <div className="absolute inset-0 bg-zinc-950/35" />
+            <div className="absolute inset-0 flex items-center justify-center p-6">
+              <div className="border-2 border-white/95 bg-zinc-950/30 px-6 py-4 text-center backdrop-blur-[2px]">
+                <p className="font-sans text-2xl font-bold tracking-[0.26em] text-white uppercase">
+                  PANTRY
+                </p>
+                <p className="mt-1 text-[10px] font-semibold tracking-[0.22em] text-white/90 uppercase">
+                  Live Stock &amp; Voting
+                </p>
               </div>
-
-              {snackOfTheWeek && (
-                <div className="flex items-center gap-2">
-                  <SnackStatusBadge status={snackOfTheWeek.status} />
-                  {snackOfTheWeek.quantity === 1 && <LastPacketBadge />}
-                </div>
-              )}
             </div>
           </div>
-        )}
-      </motion.section>
-
-      {/* 4-Column KPI Strip */}
-      <motion.section
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.25, delay: 0.06, ease: [0.16, 1, 0.3, 1] }}
-        aria-label="Pantry health summary"
-      >
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Pantry Health % */}
-          <div className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="flex items-center justify-between text-xs font-medium text-zinc-500 dark:text-zinc-400">
-              <span>Pantry health</span>
-              <span className="font-mono tabular-nums">
-                {counts.stocked}/{totalSnacks} stocked
-              </span>
-            </div>
-            <p className="mt-2 font-mono text-3xl font-bold tabular-nums text-zinc-950 dark:text-white">
-              {summaryLoading ? '—' : `${pantryHealthPct}%`}
-            </p>
-            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-              <div
-                className="h-full rounded-full bg-yellow-400 transition-[width] duration-300"
-                style={{ width: `${pantryHealthPct}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Stocked */}
-          <Link
-            to="/snacks?status=stocked"
-            className="group rounded-2xl border border-zinc-200 bg-white p-5 transition-colors hover:border-yellow-400 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-yellow-400/70"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                Stocked
-              </span>
-              <CheckCircle2
-                className="h-4 w-4 text-emerald-600 dark:text-emerald-400"
-                aria-hidden="true"
-              />
-            </div>
-            <p className="mt-2 font-mono text-3xl font-bold tabular-nums text-zinc-950 dark:text-white">
-              {summaryLoading ? '—' : counts.stocked}
-            </p>
-            <p className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-zinc-700 group-hover:text-yellow-600 dark:text-zinc-300 dark:group-hover:text-yellow-400">
-              <span>View stocked</span>
-              <ArrowRight className="h-3 w-3" aria-hidden="true" />
-            </p>
-          </Link>
-
-          {/* Running Low */}
-          <Link
-            to="/snacks?status=running_low"
-            className="group rounded-2xl border border-zinc-200 bg-white p-5 transition-colors hover:border-amber-400 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-amber-500/70"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                Running low
-              </span>
-              <AlertTriangle
-                className="h-4 w-4 text-amber-600 dark:text-amber-400"
-                aria-hidden="true"
-              />
-            </div>
-            <p className="mt-2 font-mono text-3xl font-bold tabular-nums text-zinc-950 dark:text-white">
-              {summaryLoading ? '—' : counts.runningLow}
-            </p>
-            <p className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-amber-700 group-hover:underline dark:text-amber-400">
-              <span>Inspect low stock</span>
-              <ArrowRight className="h-3 w-3" aria-hidden="true" />
-            </p>
-          </Link>
-
-          {/* Gone */}
-          <Link
-            to="/snacks?status=gone"
-            className="group rounded-2xl border border-zinc-200 bg-white p-5 transition-colors hover:border-red-400 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-red-500/70"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Gone</span>
-              <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" aria-hidden="true" />
-            </div>
-            <p className="mt-2 font-mono text-3xl font-bold tabular-nums text-zinc-950 dark:text-white">
-              {summaryLoading ? '—' : counts.gone}
-            </p>
-            <p className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-red-700 group-hover:underline dark:text-red-400">
-              <span>View empty</span>
-              <ArrowRight className="h-3 w-3" aria-hidden="true" />
-            </p>
-          </Link>
-        </div>
-      </motion.section>
-
-      {/* Low Stock & Quick Access Watchlist */}
-      <motion.section
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.25, delay: 0.12, ease: [0.16, 1, 0.3, 1] }}
-        aria-labelledby="watchlist-heading"
-      >
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h2
-              id="watchlist-heading"
-              className="font-display text-xl font-bold text-zinc-950 dark:text-white"
-            >
-              Lowest stock first
-            </h2>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              Snacks closest to running out across the office pantry.
-            </p>
-          </div>
-          <Link
-            to="/snacks"
-            className="inline-flex min-h-[38px] items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3.5 py-1.5 text-xs font-bold text-zinc-900 whitespace-nowrap transition-all hover:border-yellow-400 hover:bg-yellow-400 hover:text-zinc-950 active:scale-[0.98] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-yellow-400 dark:hover:bg-yellow-400 dark:hover:text-zinc-950"
-          >
-            <span>Open full pantry</span>
-            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-          </Link>
         </div>
 
-        <div className="mt-4">
-          {watchlistLoading ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {Array.from({ length: 3 }).map((_, idx) => (
-                <div
-                  key={idx}
-                  className="h-44 animate-pulse rounded-2xl border border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900"
-                />
-              ))}
+        {/* Desktop diagonal split (md+) */}
+        <div className="relative hidden h-[420px] w-full overflow-hidden md:block lg:h-[480px]">
+          {/* Left Diagonal Layer */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+            className="hero-split-left absolute inset-0"
+          >
+            {!leftHeroFailed && (
+              <img
+                src={HERO_LEFT_IMAGE}
+                alt="Curated artisan office snacks on dark slate"
+                referrerPolicy="no-referrer"
+                onError={() => setLeftHeroFailed(true)}
+                className="h-full w-full object-cover object-center"
+              />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-r from-zinc-950/75 via-zinc-950/45 to-zinc-950/25" />
+            <div className="absolute inset-y-0 left-0 flex w-[48%] flex-col items-center justify-center px-8 text-center">
+              <h1 className="font-serif text-5xl font-semibold italic tracking-tight text-white drop-shadow-md lg:text-6xl">
+                Snack Overflow
+              </h1>
+              <p className="mt-2.5 text-[11px] font-semibold tracking-[0.3em] text-zinc-100/90 uppercase">
+                Office Pantry Collective
+              </p>
             </div>
-          ) : watchlistData && watchlistData.data.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {watchlistData.data.map((snack, index) => (
-                <motion.div
-                  key={snack.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{
-                    duration: 0.22,
-                    delay: Math.min(index * 0.04, 0.2),
-                    ease: [0.16, 1, 0.3, 1],
-                  }}
-                  className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
-                >
-                  <div className="flex items-center gap-3.5 p-4 pb-3">
-                    <SnackImage
-                      name={snack.name}
-                      category={snack.category}
-                      imageUrl={snack.imageUrl}
-                      className="h-14 w-16 shrink-0 rounded-xl border border-zinc-100 dark:border-zinc-800"
-                      iconSizeClass="h-5 w-5"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                          {formatCategoryLabel(snack.category)}
-                        </p>
-                        <SnackStatusBadge status={snack.status} />
-                      </div>
-                      <h3 className="mt-0.5 truncate font-bold text-zinc-950 dark:text-zinc-100">
-                        {snack.name}
-                      </h3>
-                      {snack.quantity === 1 && (
-                        <div className="mt-1.5">
-                          <LastPacketBadge />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="px-4 pb-4">
-                    <StockFuelGauge
-                      quantity={snack.quantity}
-                      lowStockThreshold={snack.lowStockThreshold}
-                      status={snack.status}
-                    />
-                  </div>
-                </motion.div>
-              ))}
+          </motion.div>
+
+          {/* Right Diagonal Layer */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.45, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+            className="hero-split-right absolute inset-0"
+          >
+            {!rightHeroFailed && (
+              <img
+                src={HERO_RIGHT_IMAGE}
+                alt="Sunlit curated office pantry shelves"
+                referrerPolicy="no-referrer"
+                onError={() => setRightHeroFailed(true)}
+                className="h-full w-full object-cover object-center"
+              />
+            )}
+            <div className="absolute inset-0 bg-zinc-950/25" />
+            <div className="absolute inset-y-0 right-0 flex w-[48%] items-center justify-center px-8">
+              <button
+                type="button"
+                onClick={() => jumpToMenuStatus('')}
+                className="group border-[3px] border-white/95 bg-zinc-950/25 px-8 py-5 text-center backdrop-blur-[2px] transition-all duration-200 hover:bg-zinc-950/45 active:scale-[0.99]"
+              >
+                <span className="block font-sans text-3xl font-bold tracking-[0.28em] text-white uppercase lg:text-4xl">
+                  PANTRY
+                </span>
+                <span className="mt-1.5 block text-[11px] font-semibold tracking-[0.24em] text-white/90 uppercase group-hover:text-[#d4b97e]">
+                  Live Stock &amp; Voting
+                </span>
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* BRUSHED CHARCOAL PANTRY HEALTH SUMMARY STRIP */}
+      <section aria-label="Pantry health summary" className="charcoal-bar border-b border-zinc-800/90">
+        <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
+          {summaryError ? (
+            <div className="flex flex-col items-center justify-between gap-3 rounded-lg border border-red-900/60 bg-red-950/30 px-4 py-3 text-sm text-red-200 sm:flex-row">
+              <span>{getFriendlyErrorMessage(summaryErrObj)}</span>
+              <button
+                type="button"
+                onClick={() => void refetchSummary()}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[#d4b97e] px-3 py-1.5 text-xs font-bold text-zinc-950 uppercase"
+              >
+                <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Retry</span>
+              </button>
             </div>
           ) : (
-            <div className="rounded-2xl border border-zinc-200 bg-white p-8 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-              No snacks tracked yet. Head to the pantry to add items.
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <button
+                type="button"
+                onClick={() => jumpToMenuStatus('')}
+                className="rounded-lg border border-zinc-800 bg-zinc-900/70 px-4 py-3 text-left transition-colors hover:border-[#d4b97e]/60"
+              >
+                <div className="flex items-center justify-between text-[11px] font-semibold tracking-[0.14em] text-zinc-400 uppercase">
+                  <span>Pantry Health</span>
+                  <span className="font-mono text-[#d4b97e] tabular-nums">
+                    {counts.stocked}/{totalSnacks}
+                  </span>
+                </div>
+                <p className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-white">
+                  {summaryLoading ? '—' : `${pantryHealthPct}%`}
+                </p>
+                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
+                  <div
+                    className="h-full rounded-full bg-[#d4b97e] transition-[width] duration-300"
+                    style={{ width: `${pantryHealthPct}%` }}
+                  />
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => jumpToMenuStatus('stocked')}
+                className="rounded-lg border border-zinc-800 bg-zinc-900/70 px-4 py-3 text-left transition-colors hover:border-emerald-500/60"
+              >
+                <div className="flex items-center justify-between text-[11px] font-semibold tracking-[0.14em] text-zinc-400 uppercase">
+                  <span>Stocked</span>
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400" aria-hidden="true" />
+                </div>
+                <p className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-white">
+                  {summaryLoading ? '—' : counts.stocked}
+                </p>
+                <p className="mt-1 text-[11px] font-medium text-emerald-400">Ready to grab</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => jumpToMenuStatus('running_low')}
+                className="rounded-lg border border-zinc-800 bg-zinc-900/70 px-4 py-3 text-left transition-colors hover:border-amber-500/60"
+              >
+                <div className="flex items-center justify-between text-[11px] font-semibold tracking-[0.14em] text-zinc-400 uppercase">
+                  <span>Running Low</span>
+                  <AlertTriangle className="h-4 w-4 text-amber-400" aria-hidden="true" />
+                </div>
+                <p className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-white">
+                  {summaryLoading ? '—' : counts.runningLow}
+                </p>
+                <p className="mt-1 text-[11px] font-medium text-amber-400">Needs restock soon</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => jumpToMenuStatus('gone')}
+                className="rounded-lg border border-zinc-800 bg-zinc-900/70 px-4 py-3 text-left transition-colors hover:border-red-500/60"
+              >
+                <div className="flex items-center justify-between text-[11px] font-semibold tracking-[0.14em] text-zinc-400 uppercase">
+                  <span>Gone</span>
+                  <XCircle className="h-4 w-4 text-red-400" aria-hidden="true" />
+                </div>
+                <p className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-white">
+                  {summaryLoading ? '—' : counts.gone}
+                </p>
+                <p className="mt-1 text-[11px] font-medium text-red-400">Out of stock</p>
+              </button>
             </div>
           )}
         </div>
-      </motion.section>
+      </section>
+
+      {/* SIGNATURE TWO-COLUMN EDITORIAL MENU */}
+      <PantryMenuSection
+        filters={filters}
+        onUpdateFilter={updateFilter}
+        onSortChange={handleSortChange}
+        onClearAll={clearAll}
+        snackOfTheWeek={summary?.snackOfTheWeek ?? null}
+      />
     </div>
   );
 }

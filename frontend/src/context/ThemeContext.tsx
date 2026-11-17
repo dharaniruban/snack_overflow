@@ -8,7 +8,7 @@ interface ThemeContextValue {
   setTheme: (theme: Theme) => void;
 }
 
-const THEME_STORAGE_KEY = 'snack_overflow_theme';
+const THEME_STORAGE_KEY = 'snack_overflow_theme_v2';
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 

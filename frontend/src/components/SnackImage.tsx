@@ -4,39 +4,34 @@ import { useEffect, useRef, useState } from 'react';
 import { formatCategoryLabel } from '@/src/lib/snackDisplay';
 import {
   resolveSnackPlaceholder,
-  SNACK_ILLUSTRATIONS,
-  type SnackIllustrationKey,
+  SNACK_REAL_IMAGES,
+  type SnackImageKey,
 } from '@/src/lib/snackPlaceholders';
 import type { SnackCategory } from '@/src/types/api';
 
 const FALLBACK_STYLES: Record<
-  SnackIllustrationKey,
+  SnackImageKey,
   { gradient: string; Icon: typeof Cookie }
 > = {
   sweet: {
     gradient:
-      'from-amber-100 via-stone-100 to-amber-50 dark:from-amber-950/70 dark:via-slate-900 dark:to-slate-950',
+      'from-amber-100 via-stone-100 to-amber-50 dark:from-amber-950/70 dark:via-zinc-900 dark:to-zinc-950',
     Icon: Cookie,
   },
   savoury: {
     gradient:
-      'from-yellow-100 via-stone-100 to-slate-100 dark:from-yellow-950/60 dark:via-slate-900 dark:to-slate-950',
+      'from-yellow-100 via-stone-100 to-zinc-100 dark:from-yellow-950/60 dark:via-zinc-900 dark:to-zinc-950',
     Icon: Flame,
   },
   drink: {
     gradient:
-      'from-sky-100 via-slate-100 to-cyan-50 dark:from-sky-950/60 dark:via-slate-900 dark:to-slate-950',
+      'from-sky-100 via-slate-100 to-cyan-50 dark:from-sky-950/60 dark:via-zinc-900 dark:to-zinc-950',
     Icon: Coffee,
   },
   'healthy-ish': {
     gradient:
-      'from-emerald-100 via-stone-100 to-teal-50 dark:from-emerald-950/60 dark:via-slate-900 dark:to-slate-950',
+      'from-emerald-100 via-stone-100 to-teal-50 dark:from-emerald-950/60 dark:via-zinc-900 dark:to-zinc-950',
     Icon: Leaf,
-  },
-  'tea-biscuit': {
-    gradient:
-      'from-emerald-100 via-stone-100 to-amber-50 dark:from-emerald-950/60 dark:via-slate-900 dark:to-slate-950',
-    Icon: Coffee,
   },
 };
 
@@ -66,7 +61,7 @@ export function SnackImage({
   iconSizeClass = 'h-7 w-7',
 }: SnackImageProps) {
   const resolved = resolveSnackPlaceholder({ name, category, imageUrl });
-  const fallbackSrc = SNACK_ILLUSTRATIONS[resolved.key];
+  const fallbackSrc = SNACK_REAL_IMAGES[resolved.key];
   const [activeSrc, setActiveSrc] = useState(resolved.src);
   const [loadState, setLoadState] = useState<'loading' | 'loaded' | 'error'>('loading');
   const imgRef = useRef<HTMLImageElement | null>(null);
@@ -99,7 +94,7 @@ export function SnackImage({
       {loadState === 'loading' && (
         <div
           aria-hidden="true"
-          className="absolute inset-0 animate-pulse bg-slate-200/70 dark:bg-slate-800/70"
+          className="absolute inset-0 animate-pulse bg-stone-200/80 dark:bg-zinc-800/80"
         />
       )}
 
@@ -118,7 +113,7 @@ export function SnackImage({
           className={`h-full w-full object-cover transition-transform duration-300 ${imgClassName}`}
         />
       ) : (
-        <div className="flex h-full w-full items-center justify-center text-slate-400 dark:text-slate-500">
+        <div className="flex h-full w-full items-center justify-center text-zinc-400 dark:text-zinc-500">
           <Icon className={iconSizeClass} aria-hidden="true" />
         </div>
       )}

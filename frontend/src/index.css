@@ -2,7 +2,8 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", Georgia, serif;
+  --font-display: "Playfair Display", Georgia, serif;
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
@@ -10,12 +11,6 @@
 @layer base {
   html {
     font-family: var(--font-sans);
-  }
-
-  h1,
-  h2,
-  .font-display {
-    font-family: var(--font-display);
   }
 
   button:not(:disabled),
@@ -26,6 +21,45 @@
 
 .tabular-nums {
   font-variant-numeric: tabular-nums;
+}
+
+/* Brushed dark charcoal bar inspired by editorial hospitality headers */
+.charcoal-bar {
+  background-color: #141517;
+  background-image:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.07) 0%, transparent 70%),
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.015) 0px,
+      rgba(255, 255, 255, 0.015) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+}
+
+/* Warm parchment paper texture for the editorial menu panel */
+.parchment-panel {
+  background-color: #f4f1ea;
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(212, 185, 126, 0.08), transparent 55%),
+    radial-gradient(circle at 80% 80%, rgba(28, 29, 32, 0.04), transparent 55%);
+}
+
+.dark .parchment-panel {
+  background-color: #18191c;
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(212, 185, 126, 0.06), transparent 55%),
+    none;
+}
+
+@media (min-width: 768px) {
+  .hero-split-left {
+    clip-path: polygon(0 0, 56% 0, 44% 100%, 0 100%);
+  }
+
+  .hero-split-right {
+    clip-path: polygon(56% 0, 100% 0, 100% 100%, 44% 100%);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,0 +1,6 @@
+{
+  "name": "Snack Overflow",
+  "description": "Real-time office pantry tracker with live stock gauges, snack voting, and admin restock controls.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

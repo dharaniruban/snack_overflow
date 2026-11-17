@@ -221,14 +221,14 @@ export function SnackFormModal({
             type="button"
             disabled={isPending}
             onClick={onClose}
-            className="min-h-[40px] rounded-xl border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            className="min-h-[40px] rounded-lg border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={isPending}
-            className="min-h-[40px] rounded-xl bg-yellow-400 px-4 py-2 text-sm font-bold text-zinc-950 transition-all hover:bg-yellow-300 active:scale-[0.98] disabled:opacity-60"
+            className="min-h-[40px] rounded-lg bg-[#1c1d20] px-4 py-2 text-sm font-bold text-[#f3dfb0] transition-all hover:bg-[#2c2e33] active:scale-[0.98] disabled:opacity-60 dark:bg-[#d4b97e] dark:text-[#141517] dark:hover:bg-[#e3ca92]"
           >
             {isPending ? 'Saving...' : mode === 'create' ? 'Add snack' : 'Save changes'}
           </button>
@@ -281,9 +281,9 @@ export function RestockModal({ snack, isPending, onClose, onSubmit }: RestockMod
               key={preset}
               type="button"
               onClick={() => setAmount(String(preset))}
-              className={`min-h-[38px] flex-1 rounded-xl border px-2 py-1.5 font-mono text-xs font-bold tabular-nums transition-all active:scale-[0.97] ${
+              className={`min-h-[38px] flex-1 rounded-lg border px-2 py-1.5 font-mono text-xs font-bold tabular-nums transition-all active:scale-[0.97] ${
                 amount === String(preset)
-                  ? 'border-yellow-400 bg-yellow-400 text-zinc-950'
+                  ? 'border-[#d4b97e] bg-[#d4b97e] text-zinc-950'
                   : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700'
               }`}
             >
@@ -308,7 +308,7 @@ export function RestockModal({ snack, isPending, onClose, onSubmit }: RestockMod
             autoFocus
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className="mt-1.5 block min-h-[42px] w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 font-mono text-sm tabular-nums text-zinc-950 focus:border-yellow-400 focus:bg-white focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+            className="mt-1.5 block min-h-[42px] w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 font-mono text-sm tabular-nums text-zinc-950 focus:border-[#d4b97e] focus:bg-white focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
           />
         </div>
 
@@ -321,14 +321,14 @@ export function RestockModal({ snack, isPending, onClose, onSubmit }: RestockMod
             type="button"
             disabled={isPending}
             onClick={onClose}
-            className="min-h-[40px] rounded-xl border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            className="min-h-[40px] rounded-lg border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={isPending}
-            className="min-h-[40px] rounded-xl bg-yellow-400 px-4 py-2 text-sm font-bold text-zinc-950 transition-all hover:bg-yellow-300 active:scale-[0.98] disabled:opacity-60"
+            className="min-h-[40px] rounded-lg bg-[#1c1d20] px-4 py-2 text-sm font-bold text-[#f3dfb0] transition-all hover:bg-[#2c2e33] active:scale-[0.98] disabled:opacity-60 dark:bg-[#d4b97e] dark:text-[#141517] dark:hover:bg-[#e3ca92]"
           >
             {isPending ? 'Restocking...' : 'Confirm restock'}
           </button>

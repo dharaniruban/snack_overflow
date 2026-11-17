@@ -11,18 +11,18 @@ const STATUS_STYLE: Record<
   { text: string; bg: string; Icon: typeof CheckCircle2 }
 > = {
   stocked: {
-    text: 'text-emerald-700 dark:text-emerald-300',
-    bg: 'bg-emerald-50 border-emerald-200/80 dark:bg-emerald-950/50 dark:border-emerald-800/70',
+    text: 'text-emerald-900 dark:text-emerald-200',
+    bg: 'bg-emerald-100/95 border-emerald-300/80 dark:bg-emerald-950/85 dark:border-emerald-700/70',
     Icon: CheckCircle2,
   },
   running_low: {
-    text: 'text-amber-800 dark:text-amber-300',
-    bg: 'bg-amber-50 border-amber-200/80 dark:bg-amber-950/50 dark:border-amber-800/70',
+    text: 'text-amber-950 dark:text-amber-200',
+    bg: 'bg-amber-100/95 border-amber-300/90 dark:bg-amber-950/85 dark:border-amber-700/70',
     Icon: AlertTriangle,
   },
   gone: {
-    text: 'text-red-700 dark:text-red-300',
-    bg: 'bg-red-50 border-red-200/80 dark:bg-red-950/50 dark:border-red-800/70',
+    text: 'text-red-900 dark:text-red-200',
+    bg: 'bg-red-100/95 border-red-300/80 dark:bg-red-950/85 dark:border-red-700/70',
     Icon: XCircle,
   },
 };
@@ -32,9 +32,9 @@ export function SnackStatusBadge({ status }: SnackStatusBadgeProps) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border px-2 py-0.5 text-xs font-semibold ${bg} ${text}`}
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border px-2 py-0.5 text-[11px] font-bold tracking-wide uppercase backdrop-blur-xs ${bg} ${text}`}
     >
-      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
       <span>{formatStatusLabel(status)}</span>
     </span>
   );
@@ -44,9 +44,9 @@ export function LastPacketBadge() {
   return (
     <span
       role="status"
-      className="inline-flex animate-pulse items-center gap-1 whitespace-nowrap rounded-md border border-amber-300 bg-amber-100 px-2 py-0.5 text-[11px] font-bold tracking-wide text-amber-900 uppercase motion-reduce:animate-none dark:border-amber-700 dark:bg-amber-900/60 dark:text-amber-200"
+      className="inline-flex animate-pulse items-center gap-1 whitespace-nowrap rounded-md border border-[#d4b97e] bg-[#141517]/95 px-2 py-0.5 text-[10px] font-bold tracking-wider text-[#f3dfb0] uppercase motion-reduce:animate-none"
     >
-      <Flame className="h-3 w-3 shrink-0 text-amber-600 dark:text-amber-300" aria-hidden="true" />
+      <Flame className="h-3 w-3 shrink-0 text-[#d4b97e]" aria-hidden="true" />
       <span>LAST PACKET!</span>
     </span>
   );
