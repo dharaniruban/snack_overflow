@@ -65,7 +65,7 @@ export const snackController = {
     if (idempotencyKey && idempotencyKey.length > 255) {
       throw new AppError('VALIDATION_ERROR', 'Idempotency-Key is too long');
     }
-    const snack = await snackService.consume(id, amount, user.id, idempotencyKey ?? undefined);
+    const snack = await snackService.consume(id, amount, user, idempotencyKey ?? undefined);
     res.status(200).json(snack);
   }),
 
@@ -73,7 +73,7 @@ export const snackController = {
     const user = requireAuthUser(req);
     const { id } = req.params as IdParams;
     const { amount } = req.body as AmountBody;
-    const snack = await snackService.restock(id, amount, user.id);
+    const snack = await snackService.restock(id, amount, user);
     res.status(200).json(snack);
   }),
 };

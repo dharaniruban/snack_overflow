@@ -5,6 +5,7 @@ import { emitSnackChanged } from '../../utils/events';
 import { activityRepository } from '../activity/repository';
 import { idempotencyRepository } from '../idempotency/repository';
 import type { z } from 'zod';
+import type { AuthUser } from '../../types/auth';
 import { snackRepository, type SnackBaseRow, type SnackRow } from './repository';
 import type { CreateSnackInput, SnackResponse, SnackStatus } from './types';
 import type { createSnackSchema, listSnacksQuerySchema, updateSnackSchema } from './schemas';
@@ -130,9 +131,10 @@ export const snackService = {
   async consume(
     id: string,
     amount: number,
-    userId: string,
+    user: AuthUser,
     idempotencyKey?: string,
   ): Promise<SnackResponse> {
+    const userId = user.id;
     const outcome = await withTransaction(async (client) => {
       // Idempotent retry: return the stored response without touching stock again.
       if (idempotencyKey) {
@@ -164,6 +166,8 @@ export const snackService = {
       const quantityAfter = updated.quantity;
       await activityRepository.insert(client, {
         userId,
+        userName: user.name,
+        userEmail: user.email,
         snackId: id,
         snackName: updated.name,
         action: 'consumed',
@@ -198,7 +202,8 @@ export const snackService = {
     return outcome.snack;
   },
 
-  async restock(id: string, amount: number, userId: string): Promise<SnackResponse> {
+  async restock(id: string, amount: number, user: AuthUser): Promise<SnackResponse> {
+    const userId = user.id;
     await withTransaction(async (client) => {
       const updated = await snackRepository.restock(client, id, amount);
       if (!updated) {
@@ -208,6 +213,8 @@ export const snackService = {
       const quantityAfter = updated.quantity;
       await activityRepository.insert(client, {
         userId,
+        userName: user.name,
+        userEmail: user.email,
         snackId: id,
         snackName: updated.name,
         action: 'restocked',

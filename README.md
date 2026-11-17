@@ -39,7 +39,9 @@ primary design goals — not just features.
 - **Restock** — admins add stock back.
 - **Voting** — one vote per user per snack; powers "Snack of the Week".
 - **Activity log** — admin-only audit trail of every consume/restock with
-  before/after quantities. Survives snack deletion via a name snapshot.
+  before/after quantities. Append-only: survives snack deletion via
+  `snack_name`/`SET NULL` and user deletion via `user_name`/`user_email`
+  snapshots + `user_id SET NULL`.
 - **Idempotent consume** — optional `Idempotency-Key` header makes retries safe.
 - **Realtime** — Server-Sent Events push every stock/vote change to all clients.
 - **Role-aware UI** — members never see admin controls in the DOM; admins get
@@ -319,8 +321,7 @@ so the endpoint also accepts `?token=<jwt>` and bridges it into `Authorization`.
 
 ## Database schema
 
-See `backend/migrations/001_init.sql`, `002_idempotency.sql` and
-`003_snack_image_url.sql`.
+See `backend/migrations/001_init.sql` through `004_activity_user_snapshots.sql`.
 
 **`users`**
 
@@ -370,7 +371,9 @@ ON snacks (category)` for the category filter.
 | Column            | Type / constraint                                          | Why                                                        |
 | ----------------- | ---------------------------------------------------------- | ---------------------------------------------------------- |
 | `id`              | `UUID PRIMARY KEY DEFAULT gen_random_uuid()`               | —                                                          |
-| `user_id`         | `UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE`     | who made the change (see note below)                       |
+| `user_id`         | `UUID REFERENCES users(id) ON DELETE SET NULL` (nullable) | who made the change; nulled if the user is deleted      |
+| `user_name`       | `TEXT NOT NULL`                                            | snapshot so the audit row stays readable after user deletion |
+| `user_email`      | `TEXT NOT NULL`                                            | snapshot paired with `user_name`                          |
 | `snack_id`        | `UUID REFERENCES snacks(id) ON DELETE SET NULL`            | keeps the row if the snack is deleted                      |
 | `snack_name`      | `TEXT NOT NULL`                                            | snapshot so history stays readable after snack deletion/rename |
 | `action`          | `TEXT NOT NULL CHECK (action IN ('consumed','restocked'))` | only two stock-changing actions exist                      |
@@ -584,8 +587,10 @@ double-submit guarding, the password toggle, authenticated redirect, and the
 - Snack of the Week = the snack with the most **all-time** votes (no time
   window); ties break by most recent vote, then case-insensitive name;
   `snackOfWeek` is `null` when no snack has votes.
-- Activity `user_id`/votes use `ON DELETE CASCADE`; snack deletion preserves
-  activity via `snack_name` snapshot + `SET NULL`.
+- Votes and `idempotency_keys` use `ON DELETE CASCADE` on user/snack FKs.
+  `activity.user_id` uses `ON DELETE SET NULL` with `user_name`/`user_email`
+  snapshots, and `activity.snack_id` uses `SET NULL` with a `snack_name`
+  snapshot — audit rows are never cascade-deleted.
 
 ## Repository layout
 
@@ -594,7 +599,7 @@ double-submit guarding, the password toggle, authenticated redirect, and the
 docker-compose.yml           # db + backend + frontend(nginx)
 docker/postgres/init/        # creates snack_overflow_test for CI/tests
 backend/
-  migrations/*.sql           # schema (001_init, 002_idempotency)
+  migrations/*.sql           # schema (001_init … 004_activity_user_snapshots)
   scripts/{migrate,seed}.ts
   src/{config,db,middleware,modules,utils,types}
   tests/                     # vitest + supertest

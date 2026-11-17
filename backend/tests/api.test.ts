@@ -545,3 +545,75 @@ describe('summary', () => {
     expect(second.body.snackOfWeek.name).toBe('Alpha Tie');
   });
 });
+
+describe('activity audit survival', () => {
+  it('keeps activity rows with user snapshots when the user is deleted', async () => {
+    const member = await createUser({
+      email: 'member@example.com',
+      name: 'Member McTest',
+      role: 'member',
+    });
+    const admin = await createUser({ email: 'admin@example.com', role: 'admin' });
+    const snackId = await createSnack({ name: 'Audit Chips', quantity: 5 });
+
+    const consumed = await request(app)
+      .post(`/snacks/${snackId}/consume`)
+      .set(authHeaders(member.token))
+      .send({ amount: 1 });
+    expect(consumed.status).toBe(200);
+
+    const restocked = await request(app)
+      .post(`/snacks/${snackId}/restock`)
+      .set(authHeaders(admin.token))
+      .send({ amount: 2 });
+    expect(restocked.status).toBe(200);
+
+    // Snapshots are written at insert time inside the same transaction.
+    const written = await pool.query<{
+      action: string;
+      user_name: string;
+      user_email: string;
+    }>(
+      'SELECT action, user_name, user_email FROM activity WHERE snack_id = $1 ORDER BY created_at, action',
+      [snackId],
+    );
+    expect(written.rows).toHaveLength(2);
+    expect(written.rows[0]).toMatchObject({
+      action: 'consumed',
+      user_name: 'Member McTest',
+      user_email: 'member@example.com',
+    });
+
+    // No endpoint deletes users, but a direct DB delete must not erase audit
+    // history: user_id goes NULL and the snapshots keep the row readable.
+    await pool.query('DELETE FROM users WHERE id = $1', [member.id]);
+
+    const surviving = await pool.query<{
+      action: string;
+      user_id: string | null;
+      user_name: string;
+      user_email: string;
+    }>(
+      'SELECT action, user_id, user_name, user_email FROM activity WHERE snack_id = $1 ORDER BY created_at, action',
+      [snackId],
+    );
+    expect(surviving.rows).toHaveLength(2);
+    expect(surviving.rows[0]).toMatchObject({
+      action: 'consumed',
+      user_id: null,
+      user_name: 'Member McTest',
+      user_email: 'member@example.com',
+    });
+    expect(surviving.rows[1].user_id).toBe(admin.id);
+
+    const feed = await request(app).get('/activity').set(authHeaders(admin.token));
+    expect(feed.status).toBe(200);
+    const entry = feed.body.data.find(
+      (e: { snackName: string; action: string }) =>
+        e.snackName === 'Audit Chips' && e.action === 'consumed',
+    );
+    expect(entry).toBeTruthy();
+    expect(entry.userName).toBe('Member McTest');
+    expect(entry.userEmail).toBe('member@example.com');
+  });
+});

@@ -4,6 +4,8 @@ export type ActivityAction = 'consumed' | 'restocked';
 
 export interface InsertActivityInput {
   userId: string;
+  userName: string;
+  userEmail: string;
   snackId: string | null;
   snackName: string;
   action: ActivityAction;
@@ -27,10 +29,12 @@ export interface ActivityRow {
 export const activityRepository = {
   async insert(db: Queryable, input: InsertActivityInput): Promise<void> {
     await db.query(
-      `INSERT INTO activity (user_id, snack_id, snack_name, action, amount, quantity_before, quantity_after)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      `INSERT INTO activity (user_id, user_name, user_email, snack_id, snack_name, action, amount, quantity_before, quantity_after)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
         input.userId,
+        input.userName,
+        input.userEmail,
         input.snackId,
         input.snackName,
         input.action,
@@ -57,10 +61,10 @@ export const activityRepository = {
         a.quantity_before,
         a.quantity_after,
         a.created_at,
-        u.name AS user_name,
-        u.email AS user_email
+        COALESCE(u.name, a.user_name) AS user_name,
+        COALESCE(u.email, a.user_email) AS user_email
       FROM activity a
-      JOIN users u ON u.id = a.user_id
+      LEFT JOIN users u ON u.id = a.user_id
       ORDER BY a.created_at DESC
       LIMIT $1 OFFSET $2`,
       [options.pageSize, (options.page - 1) * options.pageSize],
