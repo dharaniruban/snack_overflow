@@ -6,12 +6,16 @@ export const snackStatusSchema = z.enum(SNACK_STATUSES);
 
 export const snackIdParamSchema = z.object({ id: z.string().uuid('Invalid snack id') }).strict();
 
+// INTEGER columns are int4; capping inputs at 1e9 keeps quantity + amount
+// below int4 max even after a restock, so the DB can never overflow.
+const MAX_STOCK = 1_000_000_000;
+
 export const createSnackSchema = z
   .object({
     name: z.string().trim().min(1, 'Name is required').max(120),
     category: snackCategorySchema,
-    quantity: z.number().int().min(0).optional(),
-    lowStockThreshold: z.number().int().min(0).optional(),
+    quantity: z.number().int().min(0).max(MAX_STOCK).optional(),
+    lowStockThreshold: z.number().int().min(0).max(MAX_STOCK).optional(),
   })
   .strict();
 
@@ -19,13 +23,19 @@ export const updateSnackSchema = z
   .object({
     name: z.string().trim().min(1).max(120).optional(),
     category: snackCategorySchema.optional(),
-    quantity: z.number().int().min(0).optional(),
-    lowStockThreshold: z.number().int().min(0).optional(),
+    quantity: z.number().int().min(0).max(MAX_STOCK).optional(),
+    lowStockThreshold: z.number().int().min(0).max(MAX_STOCK).optional(),
   })
   .strict();
 
 export const amountSchema = z
-  .object({ amount: z.number().int().positive('Amount must be a positive integer') })
+  .object({
+    amount: z
+      .number()
+      .int()
+      .positive('Amount must be a positive integer')
+      .max(MAX_STOCK, 'Amount is too large'),
+  })
   .strict();
 
 export const listSnacksQuerySchema = z

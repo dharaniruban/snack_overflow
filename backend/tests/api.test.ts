@@ -171,6 +171,12 @@ describe('snacks CRUD and validation', () => {
       .set(authHeaders(admin.token))
       .send({ name: 'X', category: 'sweet', hacker: true });
     expectError(unknownField, 400, 'VALIDATION_ERROR');
+
+    const overflowingQuantity = await request(app)
+      .post('/snacks')
+      .set(authHeaders(admin.token))
+      .send({ name: 'X', category: 'sweet', quantity: 99999999999 });
+    expectError(overflowingQuantity, 400, 'VALIDATION_ERROR');
   });
 
   it('returns the single error format for unknown routes and bad ids', async () => {
@@ -356,7 +362,7 @@ describe('consume, restock and activity', () => {
     const member = await createUser({ email: 'member@example.com' });
     const snackId = await createSnack({ name: 'Portion Control', quantity: 10 });
 
-    for (const amount of [0, -1, 1.5, '2']) {
+    for (const amount of [0, -1, 1.5, '2', 99999999999]) {
       const res = await request(app)
         .post(`/snacks/${snackId}/consume`)
         .set(authHeaders(member.token))
