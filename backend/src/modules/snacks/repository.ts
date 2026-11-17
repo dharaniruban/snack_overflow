@@ -8,6 +8,7 @@ export interface SnackRow {
   category: SnackCategory;
   quantity: number;
   low_stock_threshold: number;
+  image_url: string | null;
   created_at: Date;
   updated_at: Date;
   status: SnackStatus;
@@ -21,6 +22,7 @@ export interface SnackBaseRow {
   category: SnackCategory;
   quantity: number;
   low_stock_threshold: number;
+  image_url: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -61,6 +63,7 @@ const SELECT_SNACK = `
     s.category,
     s.quantity,
     s.low_stock_threshold,
+    s.image_url,
     s.created_at,
     s.updated_at,
     ${STATUS_EXPR} AS status,
@@ -127,6 +130,7 @@ export const snackRepository = {
         s.category,
         s.quantity,
         s.low_stock_threshold,
+        s.image_url,
         s.created_at,
         s.updated_at,
         ${STATUS_EXPR} AS status,
@@ -146,10 +150,10 @@ export const snackRepository = {
 
   async create(db: Queryable, input: Required<CreateSnackInput>): Promise<SnackBaseRow> {
     const result = await db.query<SnackBaseRow>(
-      `INSERT INTO snacks (name, category, quantity, low_stock_threshold)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, name, category, quantity, low_stock_threshold, created_at, updated_at`,
-      [input.name, input.category, input.quantity, input.lowStockThreshold],
+      `INSERT INTO snacks (name, category, quantity, low_stock_threshold, image_url)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, name, category, quantity, low_stock_threshold, image_url, created_at, updated_at`,
+      [input.name, input.category, input.quantity, input.lowStockThreshold, input.imageUrl ?? null],
     );
     return result.rows[0] as SnackBaseRow;
   },
@@ -164,9 +168,10 @@ export const snackRepository = {
       category: 'category',
       quantity: 'quantity',
       lowStockThreshold: 'low_stock_threshold',
+      imageUrl: 'image_url',
     } as const;
 
-    const entries = (Object.entries(input) as [keyof typeof columnMap, string | number][]).filter(
+    const entries = (Object.entries(input) as [keyof typeof columnMap, string | number | null][]).filter(
       ([, value]) => value !== undefined,
     );
     if (entries.length === 0) {
@@ -178,7 +183,7 @@ export const snackRepository = {
 
     const result = await db.query<SnackBaseRow>(
       `UPDATE snacks SET ${setClause}, updated_at = now() WHERE id = $1
-       RETURNING id, name, category, quantity, low_stock_threshold, created_at, updated_at`,
+       RETURNING id, name, category, quantity, low_stock_threshold, image_url, created_at, updated_at`,
       [id, ...values],
     );
     return result.rows[0];
@@ -196,7 +201,7 @@ export const snackRepository = {
       `UPDATE snacks
        SET quantity = quantity - $2, updated_at = now()
        WHERE id = $1 AND quantity >= $2
-       RETURNING id, name, category, quantity, low_stock_threshold, created_at, updated_at`,
+       RETURNING id, name, category, quantity, low_stock_threshold, image_url, created_at, updated_at`,
       [id, amount],
     );
     return result.rows[0];
@@ -207,7 +212,7 @@ export const snackRepository = {
       `UPDATE snacks
        SET quantity = quantity + $2, updated_at = now()
        WHERE id = $1
-       RETURNING id, name, category, quantity, low_stock_threshold, created_at, updated_at`,
+       RETURNING id, name, category, quantity, low_stock_threshold, image_url, created_at, updated_at`,
       [id, amount],
     );
     return result.rows[0];
@@ -229,6 +234,7 @@ export const snackRepository = {
         s.category,
         s.quantity,
         s.low_stock_threshold,
+        s.image_url,
         s.created_at,
         s.updated_at,
         ${STATUS_EXPR} AS status,

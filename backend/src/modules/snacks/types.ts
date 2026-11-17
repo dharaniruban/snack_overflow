@@ -13,6 +13,7 @@ export interface SnackResponse {
   status: SnackStatus;
   voteCount: number;
   hasVoted: boolean;
+  imageUrl?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -22,6 +23,7 @@ export interface CreateSnackInput {
   category: SnackCategory;
   quantity?: number;
   lowStockThreshold?: number;
+  imageUrl?: string | null;
 }
 
 export interface UpdateSnackInput {
@@ -29,4 +31,5 @@ export interface UpdateSnackInput {
   category?: SnackCategory;
   quantity?: number;
   lowStockThreshold?: number;
+  imageUrl?: string | null;
 }

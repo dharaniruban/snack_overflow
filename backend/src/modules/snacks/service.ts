@@ -23,6 +23,7 @@ function toSnackResponse(row: SnackRow): SnackResponse {
     status: row.status as SnackStatus,
     voteCount: row.vote_count,
     hasVoted: row.has_voted > 0,
+    imageUrl: row.image_url ?? undefined,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
   };
@@ -85,6 +86,7 @@ export const snackService = {
       category: input.category,
       quantity: input.quantity ?? 0,
       lowStockThreshold: input.lowStockThreshold ?? 5,
+      imageUrl: input.imageUrl ?? null,
     };
 
     let created: SnackBaseRow;

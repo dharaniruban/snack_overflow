@@ -1,6 +1,7 @@
 import { X } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { SnackImage } from '@/src/components/SnackImage';
 import { SNACK_CATEGORIES } from '@/src/lib/snackDisplay';
 import type { CreateSnackInput, Snack, SnackCategory, UpdateSnackInput } from '@/src/types/api';
 
@@ -58,6 +59,15 @@ function ModalShell({
   );
 }
 
+function isValidHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 interface SnackFormModalProps {
   mode: 'create' | 'edit';
   initialSnack?: Snack | null;
@@ -81,6 +91,7 @@ export function SnackFormModal({
   const [lowStockThreshold, setLowStockThreshold] = useState(
     String(initialSnack?.lowStockThreshold ?? 4)
   );
+  const [imageUrl, setImageUrl] = useState(initialSnack?.imageUrl ?? '');
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const handleSubmit = async (e: FormEvent) => {
@@ -105,6 +116,12 @@ export function SnackFormModal({
       return;
     }
 
+    const trimmedImageUrl = imageUrl.trim();
+    if (trimmedImageUrl && !isValidHttpUrl(trimmedImageUrl)) {
+      setValidationError('Enter a valid image URL (https://…) or leave it blank.');
+      return;
+    }
+
     try {
       if (mode === 'create') {
         await onSubmitCreate({
@@ -112,6 +129,7 @@ export function SnackFormModal({
           category,
           quantity: parsedQty,
           lowStockThreshold: parsedThreshold,
+          imageUrl: trimmedImageUrl || undefined,
         });
       } else if (initialSnack) {
         await onSubmitEdit(initialSnack.id, {
@@ -119,6 +137,7 @@ export function SnackFormModal({
           category,
           quantity: parsedQty,
           lowStockThreshold: parsedThreshold,
+          imageUrl: trimmedImageUrl || null,
         });
       }
       onClose();
@@ -210,6 +229,35 @@ export function SnackFormModal({
               className="mt-1.5 block min-h-[42px] w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 font-mono text-sm tabular-nums text-zinc-950 focus:border-yellow-400 focus:bg-white focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
             />
           </div>
+        </div>
+
+        <div>
+          <label
+            htmlFor="snack-image-url"
+            className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300"
+          >
+            Image URL <span className="font-normal text-zinc-400 dark:text-zinc-500">(optional)</span>
+          </label>
+          <input
+            id="snack-image-url"
+            type="url"
+            inputMode="url"
+            autoComplete="off"
+            value={imageUrl}
+            onChange={(e) => setImageUrl(e.target.value)}
+            placeholder="https://example.com/snack.png"
+            className="mt-1.5 block min-h-[42px] w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 text-sm text-zinc-950 placeholder:text-zinc-400 focus:border-yellow-400 focus:bg-white focus:ring-2 focus:ring-yellow-400/20 focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+          />
+          {imageUrl.trim() !== '' && (
+            <div className="mt-2 h-20 overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
+              <SnackImage
+                name={name.trim() || 'Snack preview'}
+                category={category}
+                imageUrl={imageUrl.trim()}
+                className="h-full w-full"
+              />
+            </div>
+          )}
         </div>
 
         {validationError && (

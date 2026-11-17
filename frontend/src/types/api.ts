@@ -67,6 +67,7 @@ export interface CreateSnackInput {
   category: SnackCategory;
   quantity?: number;
   lowStockThreshold?: number;
+  imageUrl?: string;
 }
 
 export interface UpdateSnackInput {
@@ -74,6 +75,7 @@ export interface UpdateSnackInput {
   category?: SnackCategory;
   quantity?: number;
   lowStockThreshold?: number;
+  imageUrl?: string | null;
 }
 
 export type ActivityAction = 'consumed' | 'restocked';
