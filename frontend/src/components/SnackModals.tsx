@@ -167,7 +167,7 @@ export function SnackFormModal({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Sea Salt Kettle Chips"
-            className="mt-1.5 block min-h-[42px] w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 text-sm text-zinc-950 placeholder:text-zinc-400 focus:border-yellow-400 focus:bg-white focus:ring-2 focus:ring-yellow-400/20 focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+            className="mt-1.5 block min-h-[42px] w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 text-sm text-black placeholder:text-zinc-400 focus:border-yellow-400 focus:bg-white focus:ring-2 focus:ring-yellow-400/20 focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
           />
         </div>
 
@@ -182,7 +182,7 @@ export function SnackFormModal({
             id="snack-category"
             value={category}
             onChange={(e) => setCategory(e.target.value as SnackCategory)}
-            className="mt-1.5 block min-h-[42px] w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 text-sm text-zinc-950 focus:border-yellow-400 focus:bg-white focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+            className="mt-1.5 block min-h-[42px] w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 text-sm text-black focus:border-yellow-400 focus:bg-white focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
           >
             {SNACK_CATEGORIES.map((cat) => (
               <option key={cat.value} value={cat.value}>
@@ -208,7 +208,7 @@ export function SnackFormModal({
               required
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
-              className="mt-1.5 block min-h-[42px] w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 font-mono text-sm tabular-nums text-zinc-950 focus:border-yellow-400 focus:bg-white focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+              className="mt-1.5 block min-h-[42px] w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 font-mono text-sm tabular-nums text-black focus:border-yellow-400 focus:bg-white focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
             />
           </div>
           <div>
@@ -226,7 +226,7 @@ export function SnackFormModal({
               required
               value={lowStockThreshold}
               onChange={(e) => setLowStockThreshold(e.target.value)}
-              className="mt-1.5 block min-h-[42px] w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 font-mono text-sm tabular-nums text-zinc-950 focus:border-yellow-400 focus:bg-white focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+              className="mt-1.5 block min-h-[42px] w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 font-mono text-sm tabular-nums text-black focus:border-yellow-400 focus:bg-white focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
             />
           </div>
         </div>
@@ -246,7 +246,7 @@ export function SnackFormModal({
             value={imageUrl}
             onChange={(e) => setImageUrl(e.target.value)}
             placeholder="https://example.com/snack.png"
-            className="mt-1.5 block min-h-[42px] w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 text-sm text-zinc-950 placeholder:text-zinc-400 focus:border-yellow-400 focus:bg-white focus:ring-2 focus:ring-yellow-400/20 focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+            className="mt-1.5 block min-h-[42px] w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 text-sm text-black placeholder:text-zinc-400 focus:border-yellow-400 focus:bg-white focus:ring-2 focus:ring-yellow-400/20 focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
           />
           {imageUrl.trim() !== '' && (
             <div className="mt-2 h-20 overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
@@ -356,7 +356,7 @@ export function RestockModal({ snack, isPending, onClose, onSubmit }: RestockMod
             autoFocus
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className="mt-1.5 block min-h-[42px] w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 font-mono text-sm tabular-nums text-zinc-950 focus:border-[#d4b97e] focus:bg-white focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+            className="mt-1.5 block min-h-[42px] w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 font-mono text-sm tabular-nums text-black focus:border-[#d4b97e] focus:bg-white focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
           />
         </div>
 
