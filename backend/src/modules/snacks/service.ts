@@ -86,7 +86,7 @@ export const snackService = {
       category: input.category,
       quantity: input.quantity ?? 0,
       lowStockThreshold: input.lowStockThreshold ?? 5,
-      imageUrl: input.imageUrl ?? null,
+      imageUrl: input.imageUrl ?? '',
     };
 
     let created: SnackBaseRow;

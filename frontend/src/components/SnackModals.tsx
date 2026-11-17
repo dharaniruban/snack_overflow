@@ -91,7 +91,7 @@ export function SnackFormModal({
   const [lowStockThreshold, setLowStockThreshold] = useState(
     String(initialSnack?.lowStockThreshold ?? 4)
   );
-  const [imageUrl, setImageUrl] = useState(initialSnack?.imageUrl ?? '');
+  const [imageUrl, setImageUrl] = useState<string | undefined>(initialSnack?.imageUrl);
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const handleSubmit = async (e: FormEvent) => {
@@ -116,7 +116,7 @@ export function SnackFormModal({
       return;
     }
 
-    const trimmedImageUrl = imageUrl.trim();
+    const trimmedImageUrl = (imageUrl ?? '').trim();
     if (trimmedImageUrl && !isValidHttpUrl(trimmedImageUrl)) {
       setValidationError('Enter a valid image URL (https://…) or leave it blank.');
       return;
@@ -129,7 +129,7 @@ export function SnackFormModal({
           category,
           quantity: parsedQty,
           lowStockThreshold: parsedThreshold,
-          imageUrl: trimmedImageUrl || undefined,
+          imageUrl: trimmedImageUrl,
         });
       } else if (initialSnack) {
         await onSubmitEdit(initialSnack.id, {
@@ -137,7 +137,7 @@ export function SnackFormModal({
           category,
           quantity: parsedQty,
           lowStockThreshold: parsedThreshold,
-          imageUrl: trimmedImageUrl || null,
+          imageUrl: imageUrl === undefined ? undefined : trimmedImageUrl,
         });
       }
       onClose();
@@ -243,17 +243,17 @@ export function SnackFormModal({
             type="url"
             inputMode="url"
             autoComplete="off"
-            value={imageUrl}
+            value={imageUrl ?? ''}
             onChange={(e) => setImageUrl(e.target.value)}
             placeholder="https://example.com/snack.png"
             className="mt-1.5 block min-h-[40px] w-full rounded-lg border border-zinc-700 bg-[#141517] px-3.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 transition-colors focus:border-[#d4b97e] focus:outline-none"
           />
-          {imageUrl.trim() !== '' && (
+          {(imageUrl ?? '').trim() !== '' && (
             <div className="mt-2 h-20 overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
               <SnackImage
                 name={name.trim() || 'Snack preview'}
                 category={category}
-                imageUrl={imageUrl.trim()}
+                imageUrl={(imageUrl ?? '').trim()}
                 className="h-full w-full"
               />
             </div>

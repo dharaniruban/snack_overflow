@@ -16,7 +16,7 @@ export const createSnackSchema = z
     category: snackCategorySchema,
     quantity: z.number().int().min(0).max(MAX_STOCK).optional(),
     lowStockThreshold: z.number().int().min(0).max(MAX_STOCK).optional(),
-    imageUrl: z.string().trim().url('Image URL must be a valid URL').max(2048).nullish(),
+    imageUrl: z.union([z.literal(''), z.string().trim().url('Image URL must be a valid URL').max(2048)]).nullish(),
   })
   .strict();
 
@@ -26,7 +26,7 @@ export const updateSnackSchema = z
     category: snackCategorySchema.optional(),
     quantity: z.number().int().min(0).max(MAX_STOCK).optional(),
     lowStockThreshold: z.number().int().min(0).max(MAX_STOCK).optional(),
-    imageUrl: z.string().trim().url('Image URL must be a valid URL').max(2048).nullish(),
+    imageUrl: z.union([z.literal(''), z.string().trim().url('Image URL must be a valid URL').max(2048)]).nullish(),
   })
   .strict();
 
