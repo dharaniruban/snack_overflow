@@ -97,6 +97,24 @@ describe('auth', () => {
     expectError(res, 401, 'UNAUTHENTICATED');
   });
 
+  it('GET /auth/me returns the user object directly, matching the frontend contract', async () => {
+    const member = await createUser({
+      email: 'me@example.com',
+      name: 'Me User',
+      role: 'member',
+    });
+
+    const res = await request(app).get('/auth/me').set(authHeaders(member.token));
+    expect(res.status).toBe(200);
+    // The endpoint returns the user object at the top level — the frontend
+    // reads res.user off this payload, so a { user } wrapper would break
+    // session restore on every page reload.
+    expect(res.body.id).toBe(member.id);
+    expect(res.body.email).toBe('me@example.com');
+    expect(res.body.role).toBe('member');
+    expect(res.body.password_hash).toBeUndefined();
+  });
+
   it('forbids members from admin routes but lets them read', async () => {
     const member = await createUser({ email: 'member@example.com', role: 'member' });
 
